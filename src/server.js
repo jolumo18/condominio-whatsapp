@@ -20,7 +20,39 @@ const {
 const pool = new pg.Pool({
   connectionString: DATABASE_URL
 });
+async function inicializarBanco() {
+  await pool.query(`
+    CREATE TABLE IF NOT EXISTS atendimentos_whatsapp (
+      id BIGSERIAL PRIMARY KEY,
+      telefone VARCHAR(30) NOT NULL UNIQUE,
+      nome_contato VARCHAR(120),
+      etapa VARCHAR(40) NOT NULL DEFAULT 'inicio',
+      categoria VARCHAR(60),
+      bloco VARCHAR(20),
+      unidade VARCHAR(20),
+      descricao TEXT,
+      ativo BOOLEAN NOT NULL DEFAULT TRUE,
+      criado_em TIMESTAMP NOT NULL DEFAULT NOW(),
+      atualizado_em TIMESTAMP NOT NULL DEFAULT NOW()
+    );
+  `);
 
+  await pool.query(`
+    CREATE TABLE IF NOT EXISTS reclamacoes (
+      id BIGSERIAL PRIMARY KEY,
+      protocolo VARCHAR(40) NOT NULL UNIQUE,
+      telefone VARCHAR(30) NOT NULL,
+      nome_contato VARCHAR(120),
+      categoria VARCHAR(60) NOT NULL,
+      bloco VARCHAR(20),
+      unidade VARCHAR(20),
+      descricao TEXT NOT NULL,
+      status VARCHAR(30) NOT NULL DEFAULT 'aberto',
+      criado_em TIMESTAMP NOT NULL DEFAULT NOW(),
+      atualizado_em TIMESTAMP NOT NULL DEFAULT NOW()
+    );
+  `);
+}
 function gerarProtocolo(sigla = "COND") {
   const agora = new Date();
   const y = agora.getFullYear();
@@ -528,6 +560,20 @@ app.get("/reclamacoes", async (_req, res) => {
   }
 });
 
-app.listen(PORT, () => {
-  console.log(`Servidor rodando na porta ${PORT}`);
-});
+inicializarBanco()
+  .then(() => {
+    app.listen(PORT, () => {
+      console.log(`Servidor rodando na porta ${PORT}`);
+    });
+  })
+  .catch((err) => {
+    console.error("Erro ao inicializar banco:", err);
+  });inicializarBanco()
+  .then(() => {
+    app.listen(PORT, () => {
+      console.log(`Servidor rodando na porta ${PORT}`);
+    });
+  })
+  .catch((err) => {
+    console.error("Erro ao inicializar banco:", err);
+  });
