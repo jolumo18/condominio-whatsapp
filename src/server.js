@@ -581,9 +581,7 @@ inicializarBanco()
     console.error("Erro ao inicializar banco:", err);
   });inicializarBanco()
   .then(() => {
-    app.listen(PORT, () => {
-      console.log(`Servidor rodando na porta ${PORT}`);
-    });
+    
   })
   .catch((err) => {
     console.error("Erro ao inicializar banco:", err);
