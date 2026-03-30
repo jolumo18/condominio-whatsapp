@@ -1,7 +1,7 @@
 import express from "express";
 import dotenv from "dotenv";
 import pg from "pg";
-import twilio from "twilio";
+
 
 dotenv.config();
 
@@ -562,12 +562,13 @@ app.get("/reclamacoes", async (_req, res) => {
   }
 });
 app.post("/twilio-webhook", (req, res) => {
-  const twiml = new twilio.twiml.MessagingResponse();
-
-  twiml.message("Recebi sua mensagem no WhatsApp via Twilio Sandbox.");
+  const xml = `<?xml version="1.0" encoding="UTF-8"?>
+<Response>
+  <Message>Recebi sua mensagem no WhatsApp via Twilio Sandbox.</Message>
+</Response>`;
 
   res.type("text/xml");
-  res.send(twiml.toString());
+  res.send(xml);
 });
 
 inicializarBanco()
