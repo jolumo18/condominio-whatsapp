@@ -465,6 +465,53 @@ app.get("/reclamacoes/:protocolo", async (req, res) => {
 });
 
 // Webhook da Twilio Sandbox
+const STATUS_PERMITIDOS = [
+  "aberto",
+  "em_analise",
+  "respondido",
+  "finalizado"
+];
+
+app.post("/reclamacoes/:protocolo/status", async (req, res) => {
+  try {
+    const { protocolo } = req.params;
+    const status = normalizarTexto(req.body.status || "").toLowerCase();
+
+    if (!STATUS_PERMITIDOS.includes(status)) {
+      return res.status(400).json({
+        error: "Status inválido",
+        permitidos: STATUS_PERMITIDOS
+      });
+    }
+
+    const { rows } = await pool.query(
+      `
+      UPDATE reclamacoes
+      SET status = $1, atualizado_em = NOW()
+      WHERE protocolo = $2
+      RETURNING id, protocolo, telefone, nome_contato, categoria, bloco, unidade, descricao, status, criado_em, atualizado_em
+      `,
+      [status, protocolo]
+    );
+
+    if (!rows.length) {
+      return res.status(404).json({
+        error: "Protocolo não encontrado"
+      });
+    }
+
+    res.json({
+      ok: true,
+      mensagem: "Status atualizado com sucesso",
+      reclamacao: rows[0]
+    });
+  } catch (err) {
+    console.error("Erro ao atualizar status:", err);
+    res.status(500).json({
+      error: "Erro interno ao atualizar status"
+    });
+  }
+});
 app.post("/twilio-webhook", async (req, res) => {
   try {
     const telefone = limparTelefoneTwilio(req.body.From || "");
