@@ -512,7 +512,25 @@ app.post("/reclamacoes/:protocolo/status", async (req, res) => {
     });
   }
 });
+
+app.get("/reclamacoes/:protocolo", async (req, res) => {
+  ...
+});
+
 app.post("/twilio-webhook", async (req, res) => {
+  ...
+});
+
+inicializarBanco()
+  .then(() => {
+    app.listen(PORT, () => {
+      console.log(`Servidor rodando na porta ${PORT}`);
+    });
+  })
+  .catch((err) => {
+    console.error("Erro ao inicializar banco:", err);
+    process.exit(1);
+  });app.post("/twilio-webhook", async (req, res) => {
   try {
     const telefone = limparTelefoneTwilio(req.body.From || "");
     const nomeContato = normalizarTexto(req.body.ProfileName || "");
