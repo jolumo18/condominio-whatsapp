@@ -15,13 +15,20 @@ const {
 } = process.env;
 
 if (!DATABASE_URL) {
-  console.error("Erro: DATABASE_URL não foi definida no .env ou no Render.");
+  console.error("Erro: DATABASE_URL não foi definida.");
   process.exit(1);
 }
 
 const pool = new pg.Pool({
   connectionString: DATABASE_URL
 });
+
+const STATUS_PERMITIDOS = [
+  "aberto",
+  "em_analise",
+  "respondido",
+  "finalizado"
+];
 
 function normalizarTexto(texto = "") {
   return String(texto).trim();
@@ -41,6 +48,15 @@ function escapeXml(valor = "") {
     .replace(/>/g, "&gt;")
     .replace(/"/g, "&quot;")
     .replace(/'/g, "&apos;");
+}
+
+function escapeHtml(valor = "") {
+  return String(valor)
+    .replace(/&/g, "&amp;")
+    .replace(/</g, "&lt;")
+    .replace(/>/g, "&gt;")
+    .replace(/"/g, "&quot;")
+    .replace(/'/g, "&#39;");
 }
 
 function responderTwilio(texto) {
@@ -130,6 +146,160 @@ function montarResumo(sessao) {
     "Responda CONFIRMAR para abrir o protocolo.\n" +
     "Responda CANCELAR para desistir."
   );
+}
+
+function renderizarPainelHtml(reclamacoes, filtroProtocolo = "") {
+  const linhas = reclamacoes.map((r) => {
+    const protocolo = escapeHtml(r.protocolo || "-");
+    const nomeContato = escapeHtml(r.nome_contato || "-");
+    const telefone = escapeHtml(r.telefone || "-");
+    const categoria = escapeHtml(r.categoria || "-");
+    const bloco = escapeHtml(r.bloco || "-");
+    const unidade = escapeHtml(r.unidade || "-");
+    const descricao = escapeHtml(r.descricao || "-");
+    const status = escapeHtml(r.status || "-");
+    const criadoEm = new Date(r.criado_em).toLocaleString("pt-BR");
+
+    return `
+      <tr>
+        <td>${protocolo}</td>
+        <td>${nomeContato}</td>
+        <td>${telefone}</td>
+        <td>${categoria}</td>
+        <td>${bloco}</td>
+        <td>${unidade}</td>
+        <td style="max-width: 320px; white-space: pre-wrap;">${descricao}</td>
+        <td><strong>${status}</strong></td>
+        <td>${criadoEm}</td>
+        <td>
+          <form method="POST" action="/painel/status" style="display:flex; flex-direction:column; gap:8px;">
+            <input type="hidden" name="protocolo" value="${protocolo}" />
+            <select name="status" required>
+              <option value="aberto" ${r.status === "aberto" ? "selected" : ""}>aberto</option>
+              <option value="em_analise" ${r.status === "em_analise" ? "selected" : ""}>em_analise</option>
+              <option value="respondido" ${r.status === "respondido" ? "selected" : ""}>respondido</option>
+              <option value="finalizado" ${r.status === "finalizado" ? "selected" : ""}>finalizado</option>
+            </select>
+            <button type="submit">Atualizar</button>
+          </form>
+        </td>
+      </tr>
+    `;
+  }).join("");
+
+  return `
+    <!DOCTYPE html>
+    <html lang="pt-BR">
+    <head>
+      <meta charset="UTF-8" />
+      <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+      <title>Painel de Reclamações</title>
+      <style>
+        body {
+          font-family: Arial, sans-serif;
+          margin: 24px;
+          background: #f7f7f7;
+          color: #222;
+        }
+        h1 {
+          margin-bottom: 8px;
+        }
+        .box {
+          background: white;
+          border-radius: 10px;
+          padding: 16px;
+          margin-bottom: 20px;
+          box-shadow: 0 1px 6px rgba(0,0,0,0.08);
+        }
+        form.busca {
+          display: flex;
+          gap: 8px;
+          flex-wrap: wrap;
+        }
+        input, select, button {
+          padding: 10px;
+          border-radius: 8px;
+          border: 1px solid #ccc;
+          font-size: 14px;
+        }
+        button {
+          cursor: pointer;
+          background: #222;
+          color: white;
+          border: none;
+        }
+        table {
+          width: 100%;
+          border-collapse: collapse;
+          background: white;
+        }
+        th, td {
+          border: 1px solid #ddd;
+          padding: 10px;
+          vertical-align: top;
+          text-align: left;
+          font-size: 14px;
+        }
+        th {
+          background: #f0f0f0;
+        }
+        .topo {
+          display: flex;
+          justify-content: space-between;
+          align-items: center;
+          gap: 12px;
+          flex-wrap: wrap;
+        }
+      </style>
+    </head>
+    <body>
+      <div class="topo">
+        <div>
+          <h1>Painel de Reclamações</h1>
+          <p>Use este painel para consultar protocolos e atualizar status.</p>
+        </div>
+        <div>
+          <a href="/reclamacoes" target="_blank">Ver JSON</a>
+        </div>
+      </div>
+
+      <div class="box">
+        <form class="busca" method="GET" action="/painel">
+          <input
+            type="text"
+            name="protocolo"
+            placeholder="Buscar por protocolo"
+            value="${escapeHtml(filtroProtocolo)}"
+            style="min-width: 280px;"
+          />
+          <button type="submit">Buscar</button>
+        </form>
+      </div>
+
+      <div class="box">
+        <table>
+          <thead>
+            <tr>
+              <th>Protocolo</th>
+              <th>Nome</th>
+              <th>Telefone</th>
+              <th>Categoria</th>
+              <th>Bloco</th>
+              <th>Unidade</th>
+              <th>Descrição</th>
+              <th>Status</th>
+              <th>Criado em</th>
+              <th>Ação</th>
+            </tr>
+          </thead>
+          <tbody>
+            ${linhas || `<tr><td colspan="10">Nenhuma reclamação encontrada.</td></tr>`}
+          </tbody>
+        </table>
+      </div>
+    </body>
+    </html>
+  `;
 }
 
 async function inicializarBanco() {
@@ -238,6 +408,7 @@ async function atualizarSessao(telefone, campos) {
   return rows[0] || null;
 }
 
+
 async function encerrarSessao(telefone) {
   await pool.query(
     `
@@ -331,10 +502,7 @@ async function processarMensagemTwilio({ telefone, nomeContato, mensagem }) {
     const categoria = identificarCategoria(textoOriginal);
 
     if (!categoria) {
-      return (
-        "Não entendi a categoria.\n\n" +
-        menuCategorias()
-      );
+      return "Não entendi a categoria.\n\n" + menuCategorias();
     }
 
     await atualizarSessao(telefone, {
@@ -393,11 +561,7 @@ async function processarMensagemTwilio({ telefone, nomeContato, mensagem }) {
 
       if (!sessaoFinal || !sessaoFinal.categoria || !sessaoFinal.bloco || !sessaoFinal.unidade || !sessaoFinal.descricao) {
         await criarOuResetarSessao({ telefone, nomeContato });
-        return (
-          "Houve um problema ao concluir o atendimento.\n" +
-          "Vamos recomeçar.\n\n" +
-          menuCategorias()
-        );
+        return "Houve um problema ao concluir o atendimento.\nVamos recomeçar.\n\n" + menuCategorias();
       }
 
       const reclamacao = await criarReclamacao(sessaoFinal);
@@ -412,17 +576,14 @@ async function processarMensagemTwilio({ telefone, nomeContato, mensagem }) {
       );
     }
 
-    return (
-      montarResumo(sessao) +
-      "\n\nDigite apenas CONFIRMAR ou CANCELAR."
-    );
+    return montarResumo(sessao) + "\n\nDigite apenas CONFIRMAR ou CANCELAR.";
   }
 
   await criarOuResetarSessao({ telefone, nomeContato });
   return menuCategorias();
 }
 
-// Healthcheck
+
 app.get("/", async (_req, res) => {
   try {
     await pool.query("SELECT 1");
@@ -432,7 +593,6 @@ app.get("/", async (_req, res) => {
   }
 });
 
-// Lista as últimas reclamações
 app.get("/reclamacoes", async (_req, res) => {
   try {
     const { rows } = await pool.query(`
@@ -448,7 +608,6 @@ app.get("/reclamacoes", async (_req, res) => {
   }
 });
 
-// Consulta uma reclamação por protocolo
 app.get("/reclamacoes/:protocolo", async (req, res) => {
   try {
     const { protocolo } = req.params;
@@ -464,73 +623,63 @@ app.get("/reclamacoes/:protocolo", async (req, res) => {
   }
 });
 
-// Webhook da Twilio Sandbox
-const STATUS_PERMITIDOS = [
-  "aberto",
-  "em_analise",
-  "respondido",
-  "finalizado"
-];
-
-app.post("/reclamacoes/:protocolo/status", async (req, res) => {
+app.get("/painel", async (req, res) => {
   try {
-    const { protocolo } = req.params;
+    const protocolo = normalizarTexto(req.query.protocolo || "");
+
+    let query = `
+      SELECT id, protocolo, telefone, nome_contato, categoria, bloco, unidade, descricao, status, criado_em, atualizado_em
+      FROM reclamacoes
+    `;
+    const values = [];
+
+    if (protocolo) {
+      query += ` WHERE protocolo ILIKE $1 `;
+      values.push(`%${protocolo}%`);
+    }
+
+    query += ` ORDER BY criado_em DESC LIMIT 100 `;
+
+    const { rows } = await pool.query(query, values);
+
+    res.send(renderizarPainelHtml(rows, protocolo));
+  } catch (err) {
+    console.error("Erro ao abrir painel:", err);
+    res.status(500).send("Erro ao abrir o painel.");
+  }
+});
+
+
+app.post("/painel/status", async (req, res) => {
+  try {
+    const protocolo = normalizarTexto(req.body.protocolo || "");
     const status = normalizarTexto(req.body.status || "").toLowerCase();
 
     if (!STATUS_PERMITIDOS.includes(status)) {
-      return res.status(400).json({
-        error: "Status inválido",
-        permitidos: STATUS_PERMITIDOS
-      });
+      return res.status(400).send("Status inválido.");
     }
 
-    const { rows } = await pool.query(
+    const { rowCount } = await pool.query(
       `
       UPDATE reclamacoes
       SET status = $1, atualizado_em = NOW()
       WHERE protocolo = $2
-      RETURNING id, protocolo, telefone, nome_contato, categoria, bloco, unidade, descricao, status, criado_em, atualizado_em
       `,
       [status, protocolo]
     );
 
-    if (!rows.length) {
-      return res.status(404).json({
-        error: "Protocolo não encontrado"
-      });
+    if (!rowCount) {
+      return res.status(404).send("Protocolo não encontrado.");
     }
 
-    res.json({
-      ok: true,
-      mensagem: "Status atualizado com sucesso",
-      reclamacao: rows[0]
-    });
+    res.redirect("/painel");
   } catch (err) {
-    console.error("Erro ao atualizar status:", err);
-    res.status(500).json({
-      error: "Erro interno ao atualizar status"
-    });
+    console.error("Erro ao atualizar status pelo painel:", err);
+    res.status(500).send("Erro ao atualizar status.");
   }
 });
 
-app.get("/reclamacoes/:protocolo", async (req, res) => {
-  ...
-});
-
 app.post("/twilio-webhook", async (req, res) => {
-  ...
-});
-
-inicializarBanco()
-  .then(() => {
-    app.listen(PORT, () => {
-      console.log(`Servidor rodando na porta ${PORT}`);
-    });
-  })
-  .catch((err) => {
-    console.error("Erro ao inicializar banco:", err);
-    process.exit(1);
-  });app.post("/twilio-webhook", async (req, res) => {
   try {
     const telefone = limparTelefoneTwilio(req.body.From || "");
     const nomeContato = normalizarTexto(req.body.ProfileName || "");
@@ -555,6 +704,7 @@ inicializarBanco()
     );
   }
 });
+
 
 inicializarBanco()
   .then(() => {
