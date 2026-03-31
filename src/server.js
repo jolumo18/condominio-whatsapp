@@ -2,7 +2,6 @@ import express from "express";
 import dotenv from "dotenv";
 import pg from "pg";
 
-
 dotenv.config();
 
 const app = express();
@@ -12,16 +11,127 @@ app.use(express.urlencoded({ extended: false }));
 const {
   PORT = 3000,
   DATABASE_URL,
-  WHATSAPP_VERIFY_TOKEN,
-  WHATSAPP_ACCESS_TOKEN,
-  WHATSAPP_PHONE_NUMBER_ID,
-  WHATSAPP_GRAPH_VERSION = "v23.0",
   CONDOMINIO_SIGLA = "COND"
 } = process.env;
+
+if (!DATABASE_URL) {
+  console.error("Erro: DATABASE_URL não foi definida no .env ou no Render.");
+  process.exit(1);
+}
 
 const pool = new pg.Pool({
   connectionString: DATABASE_URL
 });
+
+function normalizarTexto(texto = "") {
+  return String(texto).trim();
+}
+
+function limparTelefoneTwilio(from = "") {
+  return String(from)
+    .replace(/^whatsapp:/i, "")
+    .replace(/[^\d+]/g, "")
+    .replace(/^\+/, "");
+}
+
+function escapeXml(valor = "") {
+  return String(valor)
+    .replace(/&/g, "&amp;")
+    .replace(/</g, "&lt;")
+    .replace(/>/g, "&gt;")
+    .replace(/"/g, "&quot;")
+    .replace(/'/g, "&apos;");
+}
+
+function responderTwilio(texto) {
+  return `<?xml version="1.0" encoding="UTF-8"?>
+<Response>
+  <Message>${escapeXml(texto)}</Message>
+</Response>`;
+}
+
+function gerarProtocolo(sigla = "COND") {
+  const agora = new Date();
+  const y = agora.getFullYear();
+  const m = String(agora.getMonth() + 1).padStart(2, "0");
+  const d = String(agora.getDate()).padStart(2, "0");
+  const h = String(agora.getHours()).padStart(2, "0");
+  const min = String(agora.getMinutes()).padStart(2, "0");
+  const s = String(agora.getSeconds()).padStart(2, "0");
+  const rand = String(Math.floor(Math.random() * 10000)).padStart(4, "0");
+  return `${sigla}-${y}${m}${d}-${h}${min}${s}-${rand}`;
+}
+
+function menuCategorias() {
+  return (
+    "Vamos registrar sua reclamação.\n\n" +
+    "Informe o número da categoria:\n" +
+    "1 - Barulho\n" +
+    "2 - Limpeza\n" +
+    "3 - Segurança\n" +
+    "4 - Manutenção\n" +
+    "5 - Outro"
+  );
+}
+
+function identificarCategoria(entrada = "") {
+  const texto = normalizarTexto(entrada).toLowerCase();
+
+  if (texto === "1" || texto.includes("barulho")) return "Barulho";
+  if (texto === "2" || texto.includes("limpeza")) return "Limpeza";
+  if (texto === "3" || texto.includes("segurança") || texto.includes("seguranca")) return "Segurança";
+  if (texto === "4" || texto.includes("manutenção") || texto.includes("manutencao")) return "Manutenção";
+  if (texto === "5" || texto.includes("outro")) return "Outro";
+
+  return null;
+}
+
+function parseBlocoUnidade(texto = "") {
+  const valor = normalizarTexto(texto);
+
+  const regex1 = /(?:bloco\s*)?([A-Za-z0-9]+)[,\s\-\/]+(?:apto|apartamento|apt|unidade|un)\s*([A-Za-z0-9\-]+)/i;
+  const regex2 = /^([A-Za-z0-9]+)\s+([A-Za-z0-9\-]+)$/i;
+  const regex3 = /bloco\s*([A-Za-z0-9]+).*?(?:apto|apartamento|apt|unidade|un)\s*([A-Za-z0-9\-]+)/i;
+
+  let match = valor.match(regex1);
+  if (match) {
+    return {
+      bloco: match[1].toUpperCase(),
+      unidade: match[2].toUpperCase()
+    };
+  }
+
+  match = valor.match(regex3);
+  if (match) {
+    return {
+      bloco: match[1].toUpperCase(),
+      unidade: match[2].toUpperCase()
+    };
+  }
+
+  match = valor.match(regex2);
+  if (match) {
+    return {
+      bloco: match[1].toUpperCase(),
+      unidade: match[2].toUpperCase()
+    };
+  }
+
+  return null;
+}
+
+function montarResumo(sessao) {
+  return (
+    "Confira os dados da sua reclamação:\n\n" +
+    `Categoria: ${sessao.categoria}\n` +
+    `Bloco: ${sessao.bloco}\n` +
+    `Unidade: ${sessao.unidade}\n` +
+    `Descrição: ${sessao.descricao}\n\n` +
+    "Responda CONFIRMAR para abrir o protocolo.\n" +
+    "Responda CANCELAR para desistir."
+  );
+}
+
 async function inicializarBanco() {
   await pool.query(`
     CREATE TABLE IF NOT EXISTS atendimentos_whatsapp (
@@ -54,185 +164,8 @@ async function inicializarBanco() {
       atualizado_em TIMESTAMP NOT NULL DEFAULT NOW()
     );
   `);
-}
-function gerarProtocolo(sigla = "COND") {
-  const agora = new Date();
-  const y = agora.getFullYear();
-  const m = String(agora.getMonth() + 1).padStart(2, "0");
-  const d = String(agora.getDate()).padStart(2, "0");
-  const h = String(agora.getHours()).padStart(2, "0");
-  const min = String(agora.getMinutes()).padStart(2, "0");
-  const s = String(agora.getSeconds()).padStart(2, "0");
-  const rand = String(Math.floor(Math.random() * 10000)).padStart(4, "0");
-  return `${sigla}-${y}${m}${d}-${h}${min}${s}-${rand}`;
-}
 
-function normalizarTexto(texto = "") {
-  return texto.trim();
-}
-
-function extrairEntrada(message) {
-  if (!message) return { tipo: "unknown", texto: "", id: "" };
-
-  if (message.type === "text") {
-    return {
-      tipo: "text",
-      texto: message.text?.body || "",
-      id: ""
-    };
-  }
-
-  if (message.type === "interactive") {
-    const buttonReply = message.interactive?.button_reply;
-    const listReply = message.interactive?.list_reply;
-
-    if (buttonReply) {
-      return {
-        tipo: "button_reply",
-        texto: buttonReply.title || "",
-        id: buttonReply.id || ""
-      };
-    }
-
-    if (listReply) {
-      return {
-        tipo: "list_reply",
-        texto: listReply.title || "",
-        id: listReply.id || ""
-      };
-    }
-  }
-
-  return {
-    tipo: message.type || "unknown",
-    texto: "",
-    id: ""
-  };
-}
-
-function parseBlocoUnidade(texto) {
-  const valor = normalizarTexto(texto);
-  const regex = /(?:bloco\\s*)?([A-Za-z0-9]+)[,\\s\\-\\/]+(?:apto|apartamento|apt|unidade|un)\\s*([A-Za-z0-9\\-]+)/i;
-  const simples = /^([A-Za-z0-9]+)\\s+([A-Za-z0-9\\-]+)$/i;
-
-  let match = valor.match(regex);
-  if (match) {
-    return {
-      bloco: match[1].toUpperCase(),
-      unidade: match[2].toUpperCase()
-    };
-  }
-
-  match = valor.match(simples);
-  if (match) {
-    return {
-      bloco: match[1].toUpperCase(),
-      unidade: match[2].toUpperCase()
-    };
-  }
-
-  return null;
-}
-
-async function enviarRequestWhatsApp(payload) {
-  const url = `https://graph.facebook.com/${WHATSAPP_GRAPH_VERSION}/${WHATSAPP_PHONE_NUMBER_ID}/messages`;
-
-  const response = await fetch(url, {
-    method: "POST",
-    headers: {
-      Authorization: `Bearer ${WHATSAPP_ACCESS_TOKEN}`,
-      "Content-Type": "application/json"
-    },
-    body: JSON.stringify(payload)
-  });
-
-  const data = await response.json();
-
-  if (!response.ok) {
-    throw new Error(`Erro WhatsApp: ${JSON.stringify(data)}`);
-  }
-
-  return data;
-}
-
-async function enviarTexto(to, body) {
-  return enviarRequestWhatsApp({
-    messaging_product: "whatsapp",
-    to,
-    type: "text",
-    text: { body }
-  });
-}
-
-async function enviarListaCategorias(to) {
-  return enviarRequestWhatsApp({
-    messaging_product: "whatsapp",
-    to,
-    type: "interactive",
-    interactive: {
-      type: "list",
-      header: {
-        type: "text",
-        text: "Nova reclamação"
-      },
-      body: {
-        text: "Selecione o tipo da reclamação:"
-      },
-      footer: {
-        text: "Escolha uma opção"
-      },
-      action: {
-        button: "Ver categorias",
-        sections: [
-          {
-            title: "Categorias",
-            rows: [
-              { id: "CAT_BARULHO", title: "Barulho", description: "Som alto, festa, perturbação" },
-              { id: "CAT_LIMPEZA", title: "Limpeza", description: "Sujeira, lixo, áreas comuns" },
-              { id: "CAT_SEGURANCA", title: "Segurança", description: "Acesso, portaria, risco" },
-              { id: "CAT_MANUTENCAO", title: "Manutenção", description: "Vazamento, iluminação, defeito" },
-              { id: "CAT_OUTRO", title: "Outro", description: "Outras ocorrências" }
-            ]
-          }
-        ]
-      }
-    }
-  });
-}
-
-async function enviarConfirmacao(to, resumo) {
-  return enviarRequestWhatsApp({
-    messaging_product: "whatsapp",
-    to,
-    type: "interactive",
-    interactive: {
-      type: "button",
-      body: {
-        text: resumo
-      },
-      footer: {
-        text: "Confirme para abrir o protocolo"
-      },
-      action: {
-        buttons: [
-          {
-            type: "reply",
-            reply: {
-              id: "CONFIRMAR_RECLAMACAO",
-              title: "Confirmar"
-            }
-          },
-          {
-            type: "reply",
-            reply: {
-              id: "CANCELAR_RECLAMACAO",
-              title: "Cancelar"
-            }
-          }
-        ]
-      }
-    }
-  });
+  console.log("Banco inicializado com sucesso.");
 }
 
 async function buscarSessao(telefone) {
@@ -250,35 +183,22 @@ async function buscarSessao(telefone) {
 }
 
 async function criarOuResetarSessao({ telefone, nomeContato }) {
-  const existente = await buscarSessao(telefone);
-
-  if (existente) {
-    const { rows } = await pool.query(
-      `
-      UPDATE atendimentos_whatsapp
-      SET
-        nome_contato = $2,
-        etapa = 'aguardando_categoria',
-        categoria = NULL,
-        bloco = NULL,
-        unidade = NULL,
-        descricao = NULL,
-        ativo = TRUE
-      WHERE telefone = $1
-      RETURNING *
-      `,
-      [telefone, nomeContato]
-    );
-
-    return rows[0];
-  }
-
   const { rows } = await pool.query(
     `
     INSERT INTO atendimentos_whatsapp
-      (telefone, nome_contato, etapa, ativo)
+      (telefone, nome_contato, etapa, categoria, bloco, unidade, descricao, ativo, atualizado_em)
     VALUES
-      ($1, $2, 'aguardando_categoria', TRUE)
+      ($1, $2, 'aguardando_categoria', NULL, NULL, NULL, NULL, TRUE, NOW())
+    ON CONFLICT (telefone)
+    DO UPDATE SET
+      nome_contato = EXCLUDED.nome_contato,
+      etapa = 'aguardando_categoria',
+      categoria = NULL,
+      bloco = NULL,
+      unidade = NULL,
+      descricao = NULL,
+      ativo = TRUE,
+      atualizado_em = NOW()
     RETURNING *
     `,
     [telefone, nomeContato]
@@ -288,16 +208,23 @@ async function criarOuResetarSessao({ telefone, nomeContato }) {
 }
 
 async function atualizarSessao(telefone, campos) {
+  const chaves = Object.keys(campos);
+
+  if (!chaves.length) {
+    return buscarSessao(telefone);
+  }
+
   const sets = [];
   const values = [];
   let index = 1;
 
-  for (const [chave, valor] of Object.entries(campos)) {
+  for (const chave of chaves) {
     sets.push(`${chave} = $${index}`);
-    values.push(valor);
+    values.push(campos[chave]);
     index++;
   }
 
+  sets.push(`atualizado_em = NOW()`);
   values.push(telefone);
 
   const query = `
@@ -315,7 +242,7 @@ async function encerrarSessao(telefone) {
   await pool.query(
     `
     UPDATE atendimentos_whatsapp
-    SET ativo = FALSE, etapa = 'encerrado'
+    SET ativo = FALSE, etapa = 'encerrado', atualizado_em = NOW()
     WHERE telefone = $1
     `,
     [telefone]
@@ -328,9 +255,9 @@ async function criarReclamacao(sessao) {
   const { rows } = await pool.query(
     `
     INSERT INTO reclamacoes
-      (protocolo, telefone, nome_contato, categoria, bloco, unidade, descricao, status)
+      (protocolo, telefone, nome_contato, categoria, bloco, unidade, descricao, status, atualizado_em)
     VALUES
-      ($1, $2, $3, $4, $5, $6, $7, 'aberto')
+      ($1, $2, $3, $4, $5, $6, $7, 'aberto', NOW())
     RETURNING *
     `,
     [
@@ -347,59 +274,67 @@ async function criarReclamacao(sessao) {
   return rows[0];
 }
 
-function nomeCategoriaPorId(id) {
-  const mapa = {
-    CAT_BARULHO: "Barulho",
-    CAT_LIMPEZA: "Limpeza",
-    CAT_SEGURANCA: "Segurança",
-    CAT_MANUTENCAO: "Manutenção",
-    CAT_OUTRO: "Outro"
-  };
-
-  return mapa[id] || null;
-}
-
-function montarResumo(sessao) {
-  return (
-    `Confira os dados da sua reclamação:\\n\\n` +
-    `Categoria: ${sessao.categoria}\\n` +
-    `Bloco: ${sessao.bloco}\\n` +
-    `Unidade: ${sessao.unidade}\\n` +
-    `Descrição: ${sessao.descricao}\\n\\n` +
-    `Deseja confirmar a abertura do protocolo?`
+async function buscarReclamacaoPorProtocolo(protocolo) {
+  const { rows } = await pool.query(
+    `
+    SELECT *
+    FROM reclamacoes
+    WHERE protocolo = $1
+    LIMIT 1
+    `,
+    [protocolo]
   );
+
+  return rows[0] || null;
 }
 
-async function processarMensagem({ telefone, nomeContato, entrada }) {
-  let sessao = await buscarSessao(telefone);
+async function processarMensagemTwilio({ telefone, nomeContato, mensagem }) {
+  const textoOriginal = normalizarTexto(mensagem);
+  const texto = textoOriginal.toLowerCase();
 
-  const texto = normalizarTexto(entrada.texto).toLowerCase();
-  if (["menu", "iniciar", "nova reclamação", "reclamação", "oi", "olá", "ola"].includes(texto)) {
-    await criarOuResetarSessao({ telefone, nomeContato });
-    await enviarListaCategorias(telefone);
-    return;
+  if (!telefone) {
+    return "Não consegui identificar seu número. Tente novamente.";
   }
+
+  if (texto.startsWith("status ")) {
+    const protocolo = textoOriginal.replace(/^status\s+/i, "").trim();
+    const reclamacao = await buscarReclamacaoPorProtocolo(protocolo);
+
+    if (!reclamacao) {
+      return "Não encontrei esse protocolo. Verifique e tente novamente.";
+    }
+
+    return (
+      `Protocolo: ${reclamacao.protocolo}\n` +
+      `Status: ${reclamacao.status}\n` +
+      `Categoria: ${reclamacao.categoria}\n` +
+      `Bloco: ${reclamacao.bloco || "-"}\n` +
+      `Unidade: ${reclamacao.unidade || "-"}`
+    );
+  }
+
+  if (
+    ["menu", "iniciar", "oi", "olá", "ola", "reclamação", "reclamacao", "nova reclamação", "nova reclamacao"].includes(texto)
+  ) {
+    await criarOuResetarSessao({ telefone, nomeContato });
+    return menuCategorias();
+  }
+
+  let sessao = await buscarSessao(telefone);
 
   if (!sessao) {
     await criarOuResetarSessao({ telefone, nomeContato });
-    await enviarTexto(
-      telefone,
-      `Olá${nomeContato ? `, ${nomeContato}` : ""}. Vamos registrar sua reclamação.`
-    );
-    await enviarListaCategorias(telefone);
-    return;
+    return menuCategorias();
   }
 
   if (sessao.etapa === "aguardando_categoria") {
-    const categoria = nomeCategoriaPorId(entrada.id);
+    const categoria = identificarCategoria(textoOriginal);
 
     if (!categoria) {
-      await enviarTexto(
-        telefone,
-        "Selecione uma categoria pela lista para continuarmos."
+      return (
+        "Não entendi a categoria.\n\n" +
+        menuCategorias()
       );
-      await enviarListaCategorias(telefone);
-      return;
     }
 
     await atualizarSessao(telefone, {
@@ -407,22 +342,22 @@ async function processarMensagem({ telefone, nomeContato, entrada }) {
       etapa: "aguardando_bloco_unidade"
     });
 
-    await enviarTexto(
-      telefone,
-      `Categoria selecionada: ${categoria}.\\nAgora informe bloco e unidade.\\nExemplo: Bloco B, apto 204`
+    return (
+      `Categoria selecionada: ${categoria}\n\n` +
+      "Agora informe bloco e unidade.\n" +
+      "Exemplo: Bloco B, apto 204"
     );
-    return;
   }
 
   if (sessao.etapa === "aguardando_bloco_unidade") {
-    const dados = parseBlocoUnidade(entrada.texto);
+    const dados = parseBlocoUnidade(textoOriginal);
 
     if (!dados) {
-      await enviarTexto(
-        telefone,
-        "Não entendi o bloco/unidade.\\nEnvie no formato: Bloco B, apto 204"
+      return (
+        "Não entendi bloco e unidade.\n" +
+        "Envie no formato:\n" +
+        "Bloco B, apto 204"
       );
-      return;
     }
 
     await atualizarSessao(telefone, {
@@ -431,126 +366,77 @@ async function processarMensagem({ telefone, nomeContato, entrada }) {
       etapa: "aguardando_descricao"
     });
 
-    await enviarTexto(
-      telefone,
-      "Perfeito. Agora descreva o ocorrido com o máximo de detalhes possível."
-    );
-    return;
+    return "Perfeito. Agora descreva o ocorrido com o máximo de detalhes possível.";
   }
 
   if (sessao.etapa === "aguardando_descricao") {
-    const descricao = normalizarTexto(entrada.texto);
-
-    if (!descricao || descricao.length < 5) {
-      await enviarTexto(
-        telefone,
-        "Envie uma descrição um pouco mais completa para registrar a reclamação."
-      );
-      return;
+    if (!textoOriginal || textoOriginal.length < 5) {
+      return "Envie uma descrição um pouco mais completa para registrar a reclamação.";
     }
 
-    const atualizada = await atualizarSessao(telefone, {
-      descricao,
+    sessao = await atualizarSessao(telefone, {
+      descricao: textoOriginal,
       etapa: "aguardando_confirmacao"
     });
 
-    await enviarConfirmacao(telefone, montarResumo(atualizada));
-    return;
+    return montarResumo(sessao);
   }
 
   if (sessao.etapa === "aguardando_confirmacao") {
-    if (entrada.id === "CANCELAR_RECLAMACAO") {
+    if (["cancelar", "cancela", "nao", "não", "2"].includes(texto)) {
       await encerrarSessao(telefone);
-      await enviarTexto(
-        telefone,
-        "Solicitação cancelada. Quando quiser abrir uma nova reclamação, envie: menu"
-      );
-      return;
+      return "Solicitação cancelada. Quando quiser começar de novo, envie: menu";
     }
 
-    if (entrada.id === "CONFIRMAR_RECLAMACAO") {
+    if (["confirmar", "confirmo", "sim", "1"].includes(texto)) {
       const sessaoFinal = await buscarSessao(telefone);
+
+      if (!sessaoFinal || !sessaoFinal.categoria || !sessaoFinal.bloco || !sessaoFinal.unidade || !sessaoFinal.descricao) {
+        await criarOuResetarSessao({ telefone, nomeContato });
+        return (
+          "Houve um problema ao concluir o atendimento.\n" +
+          "Vamos recomeçar.\n\n" +
+          menuCategorias()
+        );
+      }
+
       const reclamacao = await criarReclamacao(sessaoFinal);
       await encerrarSessao(telefone);
 
-      await enviarTexto(
-        telefone,
-        `Recebemos sua reclamação com sucesso.\\n` +
-          `Protocolo: ${reclamacao.protocolo}\\n` +
-          `Status: Aberto\\n` +
-          `Nossa equipe irá analisar a solicitação.\\n` +
-          `Por favor, aguarde a resposta.`
+      return (
+        "Recebemos sua reclamação com sucesso.\n" +
+        `Protocolo: ${reclamacao.protocolo}\n` +
+        "Status: aberto\n" +
+        "Nossa equipe irá analisar a solicitação.\n" +
+        "Por favor, aguarde a resposta."
       );
-      return;
     }
 
-    const sessaoAtual = await buscarSessao(telefone);
-    await enviarTexto(
-      telefone,
-      "Use os botões para confirmar ou cancelar a abertura do protocolo."
+    return (
+      montarResumo(sessao) +
+      "\n\nDigite apenas CONFIRMAR ou CANCELAR."
     );
-    await enviarConfirmacao(telefone, montarResumo(sessaoAtual));
   }
+
+  await criarOuResetarSessao({ telefone, nomeContato });
+  return menuCategorias();
 }
 
+// Healthcheck
 app.get("/", async (_req, res) => {
   try {
     await pool.query("SELECT 1");
-    res.status(200).json({ ok: true });
+    res.status(200).json({ ok: true, service: "condominio-whatsapp-twilio" });
   } catch (err) {
     res.status(500).json({ ok: false, error: err.message });
   }
 });
 
-app.get("/webhook", (req, res) => {
-  const mode = req.query["hub.mode"];
-  const token = req.query["hub.verify_token"];
-  const challenge = req.query["hub.challenge"];
-
-  if (mode === "subscribe" && token === WHATSAPP_VERIFY_TOKEN) {
-    return res.status(200).send(challenge);
-  }
-
-  return res.sendStatus(403);
-});
-
-app.post("/webhook", async (req, res) => {
-  try {
-    const entry = req.body.entry?.[0];
-    const change = entry?.changes?.[0];
-    const value = change?.value;
-
-    if (!value) return res.sendStatus(200);
-    if (value.statuses) return res.sendStatus(200);
-
-    const contato = value.contacts?.[0];
-    const message = value.messages?.[0];
-
-    if (!message) return res.sendStatus(200);
-
-    const telefone = message.from;
-    const nomeContato = contato?.profile?.name || null;
-    const entrada = extrairEntrada(message);
-
-    if (!telefone) return res.sendStatus(200);
-
-    await processarMensagem({
-      telefone,
-      nomeContato,
-      entrada
-    });
-
-    return res.sendStatus(200);
-  } catch (err) {
-    console.error("Erro no webhook:", err);
-    return res.sendStatus(500);
-  }
-});
-
+// Lista as últimas reclamações
 app.get("/reclamacoes", async (_req, res) => {
   try {
     const { rows } = await pool.query(`
-      SELECT *
+      SELECT id, protocolo, telefone, nome_contato, categoria, bloco, unidade, descricao, status, criado_em, atualizado_em
       FROM reclamacoes
       ORDER BY criado_em DESC
       LIMIT 100
@@ -561,14 +447,48 @@ app.get("/reclamacoes", async (_req, res) => {
     res.status(500).json({ error: err.message });
   }
 });
-app.post("/twilio-webhook", (req, res) => {
-  const xml = `<?xml version="1.0" encoding="UTF-8"?>
-<Response>
-  <Message>Recebi sua mensagem no WhatsApp via Twilio Sandbox.</Message>
-</Response>`;
 
-  res.type("text/xml");
-  res.send(xml);
+// Consulta uma reclamação por protocolo
+app.get("/reclamacoes/:protocolo", async (req, res) => {
+  try {
+    const { protocolo } = req.params;
+    const reclamacao = await buscarReclamacaoPorProtocolo(protocolo);
+
+    if (!reclamacao) {
+      return res.status(404).json({ error: "Protocolo não encontrado" });
+    }
+
+    res.json(reclamacao);
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+});
+
+// Webhook da Twilio Sandbox
+app.post("/twilio-webhook", async (req, res) => {
+  try {
+    const telefone = limparTelefoneTwilio(req.body.From || "");
+    const nomeContato = normalizarTexto(req.body.ProfileName || "");
+    const mensagem = normalizarTexto(req.body.Body || "");
+
+    const resposta = await processarMensagemTwilio({
+      telefone,
+      nomeContato,
+      mensagem
+    });
+
+    res.type("text/xml");
+    res.send(responderTwilio(resposta));
+  } catch (err) {
+    console.error("Erro no webhook da Twilio:", err);
+
+    res.type("text/xml");
+    res.send(
+      responderTwilio(
+        "Tivemos um problema interno ao processar sua mensagem. Tente novamente em instantes."
+      )
+    );
+  }
 });
 
 inicializarBanco()
@@ -579,10 +499,5 @@ inicializarBanco()
   })
   .catch((err) => {
     console.error("Erro ao inicializar banco:", err);
-  });inicializarBanco()
-  .then(() => {
-    
-  })
-  .catch((err) => {
-    console.error("Erro ao inicializar banco:", err);
+    process.exit(1);
   });
