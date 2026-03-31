@@ -11,7 +11,9 @@ app.use(express.urlencoded({ extended: false }));
 const {
   PORT = 3000,
   DATABASE_URL,
-  CONDOMINIO_SIGLA = "COND"
+  CONDOMINIO_SIGLA = "COND",
+  PAINEL_USER,
+  PAINEL_PASS
 } = process.env;
 
 if (!DATABASE_URL) {
@@ -623,7 +625,31 @@ app.get("/reclamacoes/:protocolo", async (req, res) => {
   }
 });
 
-app.get("/painel", async (req, res) => {
+function middlewareProtegePainel(req, res, next) {
+  const authHeader = req.headers.authorization;
+
+  if (!PAINEL_USER || !PAINEL_PASS) {
+    return res.status(500).send("Usuário e senha do painel não configurados.");
+  }
+
+  if (!authHeader || !authHeader.startsWith("Basic ")) {
+    res.setHeader("WWW-Authenticate", 'Basic realm="Painel Restrito"');
+    return res.status(401).send("Autenticação necessária.");
+  }
+
+  const base64 = authHeader.split(" ")[1];
+  const credenciais = Buffer.from(base64, "base64").toString("utf-8");
+  const [usuario, senha] = credenciais.split(":");
+
+  if (usuario !== PAINEL_USER || senha !== PAINEL_PASS) {
+    res.setHeader("WWW-Authenticate", 'Basic realm="Painel Restrito"');
+    return res.status(401).send("Usuário ou senha inválidos.");
+  }
+
+  next();
+}
+
+app.get("/painel", middlewareProtegePainel, async (req, res) => {
   try {
     const protocolo = normalizarTexto(req.query.protocolo || "");
 
@@ -650,7 +676,7 @@ app.get("/painel", async (req, res) => {
 });
 
 
-app.post("/painel/status", async (req, res) => {
+app.post("/painel/status", middlewareProtegePainel, async (req, res) => {
   try {
     const protocolo = normalizarTexto(req.body.protocolo || "");
     const status = normalizarTexto(req.body.status || "").toLowerCase();
