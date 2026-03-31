@@ -13,7 +13,10 @@ const {
   DATABASE_URL,
   CONDOMINIO_SIGLA = "COND",
   PAINEL_USER,
-  PAINEL_PASS
+  PAINEL_PASS,
+  TWILIO_ACCOUNT_SID,
+  TWILIO_AUTH_TOKEN,
+  TWILIO_WHATSAPP_FROM
 } = process.env;
 
 if (!DATABASE_URL) {
@@ -304,6 +307,75 @@ function renderizarPainelHtml(reclamacoes, filtroProtocolo = "") {
   `;
 }
 
+function middlewareProtegePainel(req, res, next) {
+  const authHeader = req.headers.authorization;
+
+  if (!PAINEL_USER || !PAINEL_PASS) {
+    return res.status(500).send("Usuário e senha do painel não configurados.");
+  }
+
+  if (!authHeader || !authHeader.startsWith("Basic ")) {
+    res.setHeader("WWW-Authenticate", 'Basic realm="Painel Restrito"');
+    return res.status(401).send("Autenticação necessária.");
+  }
+
+  const base64 = authHeader.split(" ")[1];
+  const credenciais = Buffer.from(base64, "base64").toString("utf-8");
+  const [usuario, senha] = credenciais.split(":");
+
+  if (usuario !== PAINEL_USER || senha !== PAINEL_PASS) {
+    res.setHeader("WWW-Authenticate", 'Basic realm="Painel Restrito"');
+    return res.status(401).send("Usuário ou senha inválidos.");
+  }
+
+  next();
+}
+
+function formatarTelefoneTwilioParaEnvio(telefone = "") {
+  const limpo = String(telefone).replace(/[^\d]/g, "");
+  return `whatsapp:+${limpo}`;
+}
+
+async function enviarMensagemStatusWhatsApp(reclamacao) {
+  if (!TWILIO_ACCOUNT_SID || !TWILIO_AUTH_TOKEN || !TWILIO_WHATSAPP_FROM) {
+    throw new Error("Credenciais Twilio não configuradas.");
+  }
+
+  const url = `https://api.twilio.com/2010-04-01/Accounts/${TWILIO_ACCOUNT_SID}/Messages.json`;
+
+  const mensagem =
+    `Atualização da sua reclamação.\n` +
+    `Protocolo: ${reclamacao.protocolo}\n` +
+    `Novo status: ${reclamacao.status}\n` +
+    `Categoria: ${reclamacao.categoria}\n` +
+    `Bloco: ${reclamacao.bloco || "-"}\n` +
+    `Unidade: ${reclamacao.unidade || "-"}`;
+
+  const body = new URLSearchParams({
+    From: TWILIO_WHATSAPP_FROM,
+    To: formatarTelefoneTwilioParaEnvio(reclamacao.telefone),
+    Body: mensagem
+  });
+
+  const auth = Buffer.from(`${TWILIO_ACCOUNT_SID}:${TWILIO_AUTH_TOKEN}`).toString("base64");
+
+  const response = await fetch(url, {
+    method: "POST",
+    headers: {
+      Authorization: `Basic ${auth}`,
+      "Content-Type": "application/x-www-form-urlencoded"
+    },
+    body
+  });
+
+  if (!response.ok) {
+    const erro = await response.text();
+    throw new Error(`Erro ao enviar WhatsApp: ${erro}`);
+  }
+
+  return response.json();
+}
+
 async function inicializarBanco() {
   await pool.query(`
     CREATE TABLE IF NOT EXISTS atendimentos_whatsapp (
@@ -409,7 +481,6 @@ async function atualizarSessao(telefone, campos) {
   const { rows } = await pool.query(query, values);
   return rows[0] || null;
 }
-
 
 async function encerrarSessao(telefone) {
   await pool.query(
@@ -585,7 +656,6 @@ async function processarMensagemTwilio({ telefone, nomeContato, mensagem }) {
   return menuCategorias();
 }
 
-
 app.get("/", async (_req, res) => {
   try {
     await pool.query("SELECT 1");
@@ -625,30 +695,6 @@ app.get("/reclamacoes/:protocolo", async (req, res) => {
   }
 });
 
-function middlewareProtegePainel(req, res, next) {
-  const authHeader = req.headers.authorization;
-
-  if (!PAINEL_USER || !PAINEL_PASS) {
-    return res.status(500).send("Usuário e senha do painel não configurados.");
-  }
-
-  if (!authHeader || !authHeader.startsWith("Basic ")) {
-    res.setHeader("WWW-Authenticate", 'Basic realm="Painel Restrito"');
-    return res.status(401).send("Autenticação necessária.");
-  }
-
-  const base64 = authHeader.split(" ")[1];
-  const credenciais = Buffer.from(base64, "base64").toString("utf-8");
-  const [usuario, senha] = credenciais.split(":");
-
-  if (usuario !== PAINEL_USER || senha !== PAINEL_PASS) {
-    res.setHeader("WWW-Authenticate", 'Basic realm="Painel Restrito"');
-    return res.status(401).send("Usuário ou senha inválidos.");
-  }
-
-  next();
-}
-
 app.get("/painel", middlewareProtegePainel, async (req, res) => {
   try {
     const protocolo = normalizarTexto(req.query.protocolo || "");
@@ -675,7 +721,6 @@ app.get("/painel", middlewareProtegePainel, async (req, res) => {
   }
 });
 
-
 app.post("/painel/status", middlewareProtegePainel, async (req, res) => {
   try {
     const protocolo = normalizarTexto(req.body.protocolo || "");
@@ -685,17 +730,26 @@ app.post("/painel/status", middlewareProtegePainel, async (req, res) => {
       return res.status(400).send("Status inválido.");
     }
 
-    const { rowCount } = await pool.query(
+    const { rows } = await pool.query(
       `
       UPDATE reclamacoes
       SET status = $1, atualizado_em = NOW()
       WHERE protocolo = $2
+      RETURNING id, protocolo, telefone, nome_contato, categoria, bloco, unidade, descricao, status, criado_em, atualizado_em
       `,
       [status, protocolo]
     );
 
-    if (!rowCount) {
+    if (!rows.length) {
       return res.status(404).send("Protocolo não encontrado.");
+    }
+
+    const reclamacaoAtualizada = rows[0];
+
+    try {
+      await enviarMensagemStatusWhatsApp(reclamacaoAtualizada);
+    } catch (erroEnvio) {
+      console.error("Status atualizado, mas falhou o envio do WhatsApp:", erroEnvio);
     }
 
     res.redirect("/painel");
@@ -730,7 +784,6 @@ app.post("/twilio-webhook", async (req, res) => {
     );
   }
 });
-
 
 inicializarBanco()
   .then(() => {
