@@ -547,7 +547,6 @@ async function buscarReclamacaoPorProtocolo(protocolo) {
     `,
     [protocolo]
   );
-
 async function registrarHistoricoStatus({ protocolo, status, observacao = null }) {
   await pool.query(
     `
