@@ -25,7 +25,10 @@ if (!DATABASE_URL) {
 }
 
 const pool = new pg.Pool({
-  connectionString: DATABASE_URL
+  connectionString: DATABASE_URL,
+  ssl: {
+    rejectUnauthorized: false
+  }
 });
 
 const STATUS_PERMITIDOS = [
