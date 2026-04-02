@@ -526,17 +526,18 @@ async function criarReclamacao(sessao) {
     ]
   );
 
- const reclamacao = rows[0];
+  const reclamacao = rows[0];
 
-await pool.query(
-  `
-  INSERT INTO reclamacoes_historico (protocolo, status, observacao)
-  VALUES ($1, $2, $3)
-  `,
-  [reclamacao.protocolo, reclamacao.status, "Reclamação criada pelo WhatsApp"]
-);
+  await pool.query(
+    `
+    INSERT INTO reclamacoes_historico (protocolo, status, observacao)
+    VALUES ($1, $2, $3)
+    `,
+    [reclamacao.protocolo, reclamacao.status, "Reclamação criada pelo WhatsApp"]
+  );
 
-return reclamacao;
+  return reclamacao;
+}
 
 async function buscarReclamacaoPorProtocolo(protocolo) {
   const { rows } = await pool.query(
@@ -549,14 +550,6 @@ async function buscarReclamacaoPorProtocolo(protocolo) {
     [protocolo]
   );
 
-  await pool.query(
-    `
-    INSERT INTO reclamacoes_historico (protocolo, status, observacao)
-    VALUES ($1, $2, $3)
-    `,
-    [protocolo, status, observacao]
-  );
-}
   return rows[0] || null;
 }
 
@@ -618,25 +611,25 @@ async function processarMensagemTwilio({ telefone, nomeContato, mensagem }) {
     );
   }
 
-  if (sessao.etapa === "aguardando_bloco_unidade") {
-    const dados = parseBlocoUnidade(textoOriginal);
+ if (sessao.etapa === "aguardando_bloco_unidade") {
+  const dados = parseBlocoUnidade(textoOriginal);
 
-    if (!dados) {
-      return (
-        "Não entendi bloco e unidade.\n" +
-        "Envie no formato:\n" +
-        "Bloco B, apto 204"
-      );
-    }
-async function registrarHistoricoStatus({ protocolo, status, observacao = null }) {
-    await atualizarSessao(telefone, {
-      bloco: dados.bloco,
-      unidade: dados.unidade,
-      etapa: "aguardando_descricao"
-    });
-
-    return "Perfeito. Agora descreva o ocorrido com o máximo de detalhes possível.";
+  if (!dados) {
+    return (
+      "Não entendi bloco e unidade.\n" +
+      "Envie no formato:\n" +
+      "Bloco B, apto 204"
+    );
   }
+
+  await atualizarSessao(telefone, {
+    bloco: dados.bloco,
+    unidade: dados.unidade,
+    etapa: "aguardando_descricao"
+  });
+
+  return "Perfeito. Agora descreva o ocorrido com o máximo de detalhes possível.";
+}
 
   if (sessao.etapa === "aguardando_descricao") {
     if (!textoOriginal || textoOriginal.length < 5) {
