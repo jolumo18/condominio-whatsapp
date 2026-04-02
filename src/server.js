@@ -411,7 +411,15 @@ async function inicializarBanco() {
       atualizado_em TIMESTAMP NOT NULL DEFAULT NOW()
     );
   `);
-
+await pool.query(`
+    CREATE TABLE IF NOT EXISTS reclamacoes_historico (
+      id BIGSERIAL PRIMARY KEY,
+      protocolo VARCHAR(40) NOT NULL,
+      status VARCHAR(30) NOT NULL,
+      observacao TEXT,
+      criado_em TIMESTAMP NOT NULL DEFAULT NOW()
+    );
+  `);
   console.log("Banco inicializado com sucesso.");
 }
 
@@ -518,7 +526,15 @@ async function criarReclamacao(sessao) {
     ]
   );
 
-  return rows[0];
+ const reclamacao = rows[0];
+
+  await registrarHistoricoStatus({
+    protocolo: reclamacao.protocolo,
+    status: reclamacao.status,
+    observacao: "Reclamação criada pelo WhatsApp"
+  });
+
+  return reclamacao;
 }
 
 async function buscarReclamacaoPorProtocolo(protocolo) {
@@ -532,6 +548,15 @@ async function buscarReclamacaoPorProtocolo(protocolo) {
     [protocolo]
   );
 
+async function registrarHistoricoStatus({ protocolo, status, observacao = null }) {
+  await pool.query(
+    `
+    INSERT INTO reclamacoes_historico (protocolo, status, observacao)
+    VALUES ($1, $2, $3)
+    `,
+    [protocolo, status, observacao]
+  );
+}
   return rows[0] || null;
 }
 
@@ -748,7 +773,11 @@ app.post("/painel/status", middlewareProtegePainel, async (req, res) => {
     }
 
     const reclamacaoAtualizada = rows[0];
-
+    await registrarHistoricoStatus({
+      protocolo: reclamacaoAtualizada.protocolo,
+      status: reclamacaoAtualizada.status,
+      observacao: "Status alterado pelo painel"
+    });
     try {
       await enviarMensagemStatusWhatsApp(reclamacaoAtualizada);
     } catch (erroEnvio) {
@@ -761,7 +790,26 @@ app.post("/painel/status", middlewareProtegePainel, async (req, res) => {
     res.status(500).send("Erro ao atualizar status.");
   }
 });
+app.get("/reclamacoes/:protocolo/historico", async (req, res) => {
+  try {
+    const { protocolo } = req.params;
 
+    const { rows } = await pool.query(
+      `
+      SELECT id, protocolo, status, observacao, criado_em
+      FROM reclamacoes_historico
+      WHERE protocolo = $1
+      ORDER BY criado_em ASC
+      `,
+      [protocolo]
+    );
+
+    res.json(rows);
+  } catch (err) {
+    console.error("Erro ao buscar histórico:", err);
+    res.status(500).json({ error: "Erro ao buscar histórico." });
+  }
+});
 app.post("/twilio-webhook", async (req, res) => {
   try {
     const telefone = limparTelefoneTwilio(req.body.From || "");
