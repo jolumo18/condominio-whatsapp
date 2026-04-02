@@ -528,15 +528,14 @@ async function criarReclamacao(sessao) {
 
  const reclamacao = rows[0];
 
-await pool.query(
-  `
-  INSERT INTO reclamacoes_historico (protocolo, status, observacao)
-  VALUES ($1, $2, $3)
-  `,
-  [reclamacao.protocolo, reclamacao.status, "Reclamação criada pelo WhatsApp"]
-);
+  await registrarHistoricoStatus({
+    protocolo: reclamacao.protocolo,
+    status: reclamacao.status,
+    observacao: "Reclamação criada pelo WhatsApp"
+  });
 
-return reclamacao;
+  return reclamacao;
+}
 
 async function buscarReclamacaoPorProtocolo(protocolo) {
   const { rows } = await pool.query(
@@ -548,7 +547,7 @@ async function buscarReclamacaoPorProtocolo(protocolo) {
     `,
     [protocolo]
   );
-
+async function registrarHistoricoStatus({ protocolo, status, observacao = null }) {
   await pool.query(
     `
     INSERT INTO reclamacoes_historico (protocolo, status, observacao)
@@ -628,7 +627,7 @@ async function processarMensagemTwilio({ telefone, nomeContato, mensagem }) {
         "Bloco B, apto 204"
       );
     }
-async function registrarHistoricoStatus({ protocolo, status, observacao = null }) {
+
     await atualizarSessao(telefone, {
       bloco: dados.bloco,
       unidade: dados.unidade,
@@ -773,17 +772,11 @@ app.post("/painel/status", middlewareProtegePainel, async (req, res) => {
     }
 
     const reclamacaoAtualizada = rows[0];
-await pool.query(
-  `
-  INSERT INTO reclamacoes_historico (protocolo, status, observacao)
-  VALUES ($1, $2, $3)
-  `,
-  [
-    reclamacaoAtualizada.protocolo,
-    reclamacaoAtualizada.status,
-    "Status alterado pelo painel"
-  ]
-);
+    await registrarHistoricoStatus({
+      protocolo: reclamacaoAtualizada.protocolo,
+      status: reclamacaoAtualizada.status,
+      observacao: "Status alterado pelo painel"
+    });
     try {
       await enviarMensagemStatusWhatsApp(reclamacaoAtualizada);
     } catch (erroEnvio) {
