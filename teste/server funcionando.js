@@ -178,7 +178,7 @@ function renderizarPainelHtml(reclamacoes, filtroProtocolo = "") {
         <td>${unidade}</td>
         <td style="max-width: 320px; white-space: pre-wrap;">${descricao}</td>
         <td><strong>${status}</strong></td>
-        <td>${criadoEm}</td>
+ <td>${criadoEm}</td>
 <td>
   <a href="/reclamacoes/${protocolo}/historico" target="_blank">Ver histórico</a>
 </td>
