@@ -178,12 +178,9 @@ function renderizarPainelHtml(reclamacoes, filtroProtocolo = "") {
         <td>${unidade}</td>
         <td style="max-width: 320px; white-space: pre-wrap;">${descricao}</td>
         <td><strong>${status}</strong></td>
- <td>${criadoEm}</td>
-<td>
-  <a href="/reclamacoes/${protocolo}/historico" target="_blank">Ver histórico</a>
-</td>
-<td>
-  <form method="POST" action="/painel/status" style="display:flex; flex-direction:column; gap:8px;">
+        <td>${criadoEm}</td>
+        <td>
+          <form method="POST" action="/painel/status" style="display:flex; flex-direction:column; gap:8px;">
             <input type="hidden" name="protocolo" value="${protocolo}" />
             <select name="status" required>
               <option value="aberto" ${r.status === "aberto" ? "selected" : ""}>aberto</option>
@@ -300,12 +297,93 @@ function renderizarPainelHtml(reclamacoes, filtroProtocolo = "") {
               <th>Descrição</th>
               <th>Status</th>
               <th>Criado em</th>
-              <th>Histórico</th>
               <th>Ação</th>
             </tr>
           </thead>
           <tbody>
             ${linhas || `<tr><td colspan="10">Nenhuma reclamação encontrada.</td></tr>`}
+          </tbody>
+        </table>
+      </div>
+    </body>
+    </html>
+  `;
+}
+
+function renderizarHistoricoHtml(protocolo, historico) {
+  const linhas = historico.map((item) => {
+    const data = new Date(item.criado_em).toLocaleString("pt-BR");
+    const status = escapeHtml(item.status || "-");
+    const observacao = escapeHtml(item.observacao || "-");
+
+    return `
+      <tr>
+        <td>${data}</td>
+        <td>${status}</td>
+        <td>${observacao}</td>
+      </tr>
+    `;
+  }).join("");
+
+  return `
+    <!DOCTYPE html>
+    <html lang="pt-BR">
+    <head>
+      <meta charset="UTF-8" />
+      <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+      <title>Histórico da Reclamação</title>
+      <style>
+        body {
+          font-family: Arial, sans-serif;
+          margin: 24px;
+          background: #f7f7f7;
+          color: #222;
+        }
+        .box {
+          background: white;
+          border-radius: 10px;
+          padding: 16px;
+          margin-bottom: 20px;
+          box-shadow: 0 1px 6px rgba(0,0,0,0.08);
+        }
+        table {
+          width: 100%;
+          border-collapse: collapse;
+          background: white;
+        }
+        th, td {
+          border: 1px solid #ddd;
+          padding: 10px;
+          text-align: left;
+          font-size: 14px;
+          vertical-align: top;
+        }
+        th {
+          background: #f0f0f0;
+        }
+        a {
+          text-decoration: none;
+        }
+      </style>
+    </head>
+    <body>
+      <div class="box">
+        <h1>Histórico da Reclamação</h1>
+        <p><strong>Protocolo:</strong> ${escapeHtml(protocolo)}</p>
+        <p><a href="/painel">Voltar ao painel</a></p>
+      </div>
+
+      <div class="box">
+        <table>
+          <thead>
+            <tr>
+              <th>Data</th>
+              <th>Status</th>
+              <th>Observação</th>
+            </tr>
+          </thead>
+          <tbody>
+            ${linhas || `<tr><td colspan="3">Nenhum histórico encontrado.</td></tr>`}
           </tbody>
         </table>
       </div>
@@ -807,10 +885,10 @@ app.get("/reclamacoes/:protocolo/historico", async (req, res) => {
       [protocolo]
     );
 
-    res.json(rows);
+    res.send(renderizarHistoricoHtml(protocolo, rows));
   } catch (err) {
     console.error("Erro ao buscar histórico:", err);
-    res.status(500).json({ error: "Erro ao buscar histórico." });
+    res.status(500).send("Erro ao buscar histórico.");
   }
 });
 app.post("/twilio-webhook", async (req, res) => {
