@@ -777,7 +777,7 @@ app.get("/reclamacoes", async (_req, res) => {
       LIMIT 100
     `);
 
-    res.json(rows);
+    res.send(renderizarHistoricoHtml(protocolo, rows));
   } catch (err) {
     res.status(500).json({ error: err.message });
   }
