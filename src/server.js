@@ -777,7 +777,7 @@ app.get("/reclamacoes", async (_req, res) => {
       LIMIT 100
     `);
 
-    res.send(renderizarHistoricoHtml(protocolo, rows));
+    res.json(rows);
   } catch (err) {
     res.status(500).json({ error: err.message });
   }
@@ -885,10 +885,10 @@ app.get("/reclamacoes/:protocolo/historico", async (req, res) => {
       [protocolo]
     );
 
-    res.send(renderizarHistoricoHtml(protocolo, rows));
+    res.json(rows);
   } catch (err) {
     console.error("Erro ao buscar histórico:", err);
-    res.status(500).send("Erro ao buscar histórico.");
+    res.status(500).json({ error: "Erro ao buscar histórico." });
   }
 });
 app.post("/twilio-webhook", async (req, res) => {
