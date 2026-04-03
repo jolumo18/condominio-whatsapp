@@ -178,9 +178,12 @@ function renderizarPainelHtml(reclamacoes, filtroProtocolo = "") {
         <td>${unidade}</td>
         <td style="max-width: 320px; white-space: pre-wrap;">${descricao}</td>
         <td><strong>${status}</strong></td>
-        <td>${criadoEm}</td>
-        <td>
-          <form method="POST" action="/painel/status" style="display:flex; flex-direction:column; gap:8px;">
+ <td>${criadoEm}</td>
+<td>
+  <a href="/reclamacoes/${protocolo}/historico" target="_blank">Ver histórico</a>
+</td>
+<td>
+  <form method="POST" action="/painel/status" style="display:flex; flex-direction:column; gap:8px;">
             <input type="hidden" name="protocolo" value="${protocolo}" />
             <select name="status" required>
               <option value="aberto" ${r.status === "aberto" ? "selected" : ""}>aberto</option>
@@ -297,6 +300,7 @@ function renderizarPainelHtml(reclamacoes, filtroProtocolo = "") {
               <th>Descrição</th>
               <th>Status</th>
               <th>Criado em</th>
+              <th>Histórico</th>
               <th>Ação</th>
             </tr>
           </thead>
