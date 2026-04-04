@@ -889,10 +889,10 @@ app.get("/reclamacoes/:protocolo/historico", async (req, res) => {
       [protocolo]
     );
 
-    res.json(rows);
+    res.send(renderizarHistoricoHtml(protocolo, rows));
   } catch (err) {
     console.error("Erro ao buscar histórico:", err);
-    res.status(500).json({ error: "Erro ao buscar histórico." });
+    res.status(500).send("Erro ao buscar histórico.");
   }
 });
 app.post("/twilio-webhook", async (req, res) => {
