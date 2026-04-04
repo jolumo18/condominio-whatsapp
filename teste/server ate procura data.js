@@ -157,7 +157,7 @@ function montarResumo(sessao) {
 }
 
 //function renderizarPainelHtml(reclamacoes, filtroProtocolo = "") {//
-function renderizarPainelHtml(reclamacoes, filtroProtocolo = "", filtroTelefone = "", filtroStatus = "") {
+function renderizarPainelHtml(reclamacoes, filtroProtocolo = "", filtroTelefone = "") {
   const linhas = reclamacoes.map((r) => {
     const protocolo = escapeHtml(r.protocolo || "-");
     const nomeContato = escapeHtml(r.nome_contato || "-");
@@ -276,29 +276,23 @@ function renderizarPainelHtml(reclamacoes, filtroProtocolo = "", filtroTelefone 
       </div>
 
       <div class="box">
-   <form class="busca" method="GET" action="/painel">
-    <input
-     type="text"
-     name="protocolo"
-     placeholder="Buscar por protocolo"
-     value="${escapeHtml(filtroProtocolo)}"
-     style="min-width: 220px;"
-   <input
-    type="text"
-    name="telefone"
-    placeholder="Buscar por telefone"
-    value="${escapeHtml(filtroTelefone)}"
-    style="min-width: 220px;"
-   />
-   <select name="status">
-    <option value="">Todos os status</option>
-    <option value="aberto" ${filtroStatus === "aberto" ? "selected" : ""}>aberto</option>
-    <option value="em_analise" ${filtroStatus === "em_analise" ? "selected" : ""}>em_analise</option>
-    <option value="respondido" ${filtroStatus === "respondido" ? "selected" : ""}>respondido</option>
-    <option value="finalizado" ${filtroStatus === "finalizado" ? "selected" : ""}>finalizado</option>
-   </select>
-   <button type="submit">Buscar</button>
- </form>
+      <form class="busca" method="GET" action="/painel">
+         <input
+          type="text"
+          name="protocolo"
+          placeholder="Buscar por protocolo"
+          value="${escapeHtml(filtroProtocolo)}"
+          style="min-width: 220px;"
+        />
+        <input
+          type="text"
+          name="telefone"
+          placeholder="Buscar por telefone"
+          value="${escapeHtml(filtroTelefone)}"
+          style="min-width: 220px;"
+        />
+        <button type="submit">Buscar</button>
+      </form>
       </div>
 
       <div class="box">
@@ -820,7 +814,6 @@ app.get("/painel", middlewareProtegePainel, async (req, res) => {
   try {
     const protocolo = normalizarTexto(req.query.protocolo || "");
     const telefone = normalizarTexto(req.query.telefone || "");
-    const status = normalizarTexto(req.query.status || "").toLowerCase();
 
     let query = `
       SELECT id, protocolo, telefone, nome_contato, categoria, bloco, unidade, descricao, status, criado_em, atualizado_em
@@ -840,11 +833,6 @@ app.get("/painel", middlewareProtegePainel, async (req, res) => {
       condicoes.push(`telefone ILIKE $${values.length}`);
     }
 
-    if (status) {
-      values.push(status);
-      condicoes.push(`status = $${values.length}`);
-    }
-
     if (condicoes.length > 0) {
       query += ` WHERE ${condicoes.join(" AND ")} `;
     }
@@ -853,13 +841,12 @@ app.get("/painel", middlewareProtegePainel, async (req, res) => {
 
     const { rows } = await pool.query(query, values);
 
-    res.send(renderizarPainelHtml(rows, protocolo, telefone, status));
+    res.send(renderizarPainelHtml(rows, protocolo, telefone));
   } catch (err) {
     console.error("Erro ao abrir painel:", err);
     res.status(500).send("Erro ao abrir o painel.");
   }
 });
-
 
 app.post("/painel/status", middlewareProtegePainel, async (req, res) => {
   try {
