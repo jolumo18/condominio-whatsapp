@@ -156,8 +156,7 @@ function montarResumo(sessao) {
   );
 }
 
-//function renderizarPainelHtml(reclamacoes, filtroProtocolo = "") {//
-function renderizarPainelHtml(reclamacoes, filtroProtocolo = "", filtroTelefone = "") {
+function renderizarPainelHtml(reclamacoes, filtroProtocolo = "") {
   const linhas = reclamacoes.map((r) => {
     const protocolo = escapeHtml(r.protocolo || "-");
     const nomeContato = escapeHtml(r.nome_contato || "-");
@@ -276,23 +275,16 @@ function renderizarPainelHtml(reclamacoes, filtroProtocolo = "", filtroTelefone 
       </div>
 
       <div class="box">
-      <form class="busca" method="GET" action="/painel">
-         <input
-          type="text"
-          name="protocolo"
-          placeholder="Buscar por protocolo"
-          value="${escapeHtml(filtroProtocolo)}"
-          style="min-width: 220px;"
-        />
-        <input
-          type="text"
-          name="telefone"
-          placeholder="Buscar por telefone"
-          value="${escapeHtml(filtroTelefone)}"
-          style="min-width: 220px;"
-        />
-        <button type="submit">Buscar</button>
-      </form>
+        <form class="busca" method="GET" action="/painel">
+          <input
+            type="text"
+            name="protocolo"
+            placeholder="Buscar por protocolo"
+            value="${escapeHtml(filtroProtocolo)}"
+            style="min-width: 280px;"
+          />
+          <button type="submit">Buscar</button>
+        </form>
       </div>
 
       <div class="box">
@@ -813,35 +805,23 @@ app.get("/reclamacoes/:protocolo", async (req, res) => {
 app.get("/painel", middlewareProtegePainel, async (req, res) => {
   try {
     const protocolo = normalizarTexto(req.query.protocolo || "");
-    const telefone = normalizarTexto(req.query.telefone || "");
 
     let query = `
       SELECT id, protocolo, telefone, nome_contato, categoria, bloco, unidade, descricao, status, criado_em, atualizado_em
       FROM reclamacoes
     `;
-
     const values = [];
-    const condicoes = [];
 
     if (protocolo) {
+      query += ` WHERE protocolo ILIKE $1 `;
       values.push(`%${protocolo}%`);
-      condicoes.push(`protocolo ILIKE $${values.length}`);
-    }
-
-    if (telefone) {
-      values.push(`%${telefone}%`);
-      condicoes.push(`telefone ILIKE $${values.length}`);
-    }
-
-    if (condicoes.length > 0) {
-      query += ` WHERE ${condicoes.join(" AND ")} `;
     }
 
     query += ` ORDER BY criado_em DESC LIMIT 100 `;
 
     const { rows } = await pool.query(query, values);
 
-    res.send(renderizarPainelHtml(rows, protocolo, telefone));
+    res.send(renderizarPainelHtml(rows, protocolo));
   } catch (err) {
     console.error("Erro ao abrir painel:", err);
     res.status(500).send("Erro ao abrir o painel.");
