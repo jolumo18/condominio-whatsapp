@@ -283,6 +283,7 @@ function renderizarPainelHtml(reclamacoes, filtroProtocolo = "", filtroTelefone 
      placeholder="Buscar por protocolo"
      value="${escapeHtml(filtroProtocolo)}"
      style="min-width: 220px;"
+     />
    <input
     type="text"
     name="telefone"
