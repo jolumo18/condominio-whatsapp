@@ -276,36 +276,36 @@ function renderizarPainelHtml(reclamacoes, filtroProtocolo = "", filtroTelefone 
       </div>
 
       <div class="box">
-    <form class="busca" method="GET" action="/painel">
+      <form class="busca" method="GET" action="/painel">
+      <input
+        type="text"
+        name="protocolo"
+        placeholder="Buscar por protocolo"
+        value="${escapeHtml(filtroProtocolo)}"
+        style="min-width: 180px;"
+      />
       <input
        type="text"
-       name="protocolo"
-       placeholder="Buscar por protocolo"
-       value="${escapeHtml(filtroProtocolo)}"
-      style="min-width: 180px;"
-    />
-     <input
-      type="text"
-      name="telefone"
-      placeholder="Buscar por telefone"
-      value="${escapeHtml(filtroTelefone)}"
-      style="min-width: 180px;"
-    />
-     <input
-      type="text"
-      name="nome"
-      placeholder="Buscar por nome"
-      value="${escapeHtml(filtroNome)}"
-      style="min-width: 180px;"
-    />
-    <select name="status">
-     <option value="">Todos os status</option>
-     <option value="aberto" ${filtroStatus === "aberto" ? "selected" : ""}>aberto</option>
-     <option value="em_analise" ${filtroStatus === "em_analise" ? "selected" : ""}>em_analise</option>
-     <option value="respondido" ${filtroStatus === "respondido" ? "selected" : ""}>respondido</option>
-     <option value="finalizado" ${filtroStatus === "finalizado" ? "selected" : ""}>finalizado</option>
-    </select>
-    <button type="submit">Buscar</button>
+       name="telefone"
+       placeholder="Buscar por telefone"
+       value="${escapeHtml(filtroTelefone)}"
+       style="min-width: 180px;"
+      />
+      <input
+       type="text"
+       name="nome"
+       placeholder="Buscar por nome"
+       value="${escapeHtml(filtroNome)}"
+       style="min-width: 180px;"
+      />
+      <select name="status">
+      <option value="">Todos os status</option>
+      <option value="aberto" ${filtroStatus === "aberto" ? "selected" : ""}>aberto</option>
+      <option value="em_analise" ${filtroStatus === "em_analise" ? "selected" : ""}>em_analise</option>
+      <option value="respondido" ${filtroStatus === "respondido" ? "selected" : ""}>respondido</option>
+      <option value="finalizado" ${filtroStatus === "finalizado" ? "selected" : ""}>finalizado</option>
+     </select>
+     <button type="submit">Buscar</button>
    </form>
       </div>
 
@@ -873,6 +873,7 @@ app.get("/painel", middlewareProtegePainel, async (req, res) => {
     res.status(500).send("Erro ao abrir o painel.");
   }
 });
+
 
 app.post("/painel/status", middlewareProtegePainel, async (req, res) => {
   try {
