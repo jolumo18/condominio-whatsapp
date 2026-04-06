@@ -157,12 +157,20 @@ function montarResumo(sessao) {
 }
 
 //function renderizarPainelHtml(reclamacoes, filtroProtocolo = "") {//
-function renderizarPainelHtml(reclamacoes, filtroProtocolo = "", filtroTelefone = "", filtroStatus = "", filtroNome = "", filtroCategoria = "") {
+function renderizarPainelHtml(
+  reclamacoes,
+  filtroProtocolo = "",
+  filtroTelefone = "",
+  filtroStatus = "",
+  filtroNome = "",
+  filtroCategoria = ""
+) {
   const total = reclamacoes.length;
-    const totalAbertas = reclamacoes.filter((r) => r.status === "aberto").length;
-    const totalEmAnalise = reclamacoes.filter((r) => r.status === "em_analise").length;
-    const totalRespondido = reclamacoes.filter((r) => r.status === "respondido").length;
-    const totalFinalizado = reclamacoes.filter((r) => r.status === "finalizado").length;
+  const totalAbertas = reclamacoes.filter((r) => r.status === "aberto").length;
+  const totalEmAnalise = reclamacoes.filter((r) => r.status === "em_analise").length;
+  const totalRespondido = reclamacoes.filter((r) => r.status === "respondido").length;
+  const totalFinalizado = reclamacoes.filter((r) => r.status === "finalizado").length;
+
   const linhas = reclamacoes.map((r) => {
     const protocolo = escapeHtml(r.protocolo || "-");
     const nomeContato = escapeHtml(r.nome_contato || "-");
@@ -218,7 +226,7 @@ function renderizarPainelHtml(reclamacoes, filtroProtocolo = "", filtroTelefone 
           background: #f7f7f7;
           color: #222;
         }
-        h1 {
+        h1, h2 {
           margin-bottom: 8px;
         }
         .box {
@@ -227,6 +235,17 @@ function renderizarPainelHtml(reclamacoes, filtroProtocolo = "", filtroTelefone 
           padding: 16px;
           margin-bottom: 20px;
           box-shadow: 0 1px 6px rgba(0,0,0,0.08);
+        }
+        .resumo-grid {
+          display: grid;
+          grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
+          gap: 12px;
+        }
+        .resumo-item {
+          background: #f8f8f8;
+          border: 1px solid #e2e2e2;
+          border-radius: 8px;
+          padding: 12px;
         }
         form.busca {
           display: flex;
@@ -244,6 +263,15 @@ function renderizarPainelHtml(reclamacoes, filtroProtocolo = "", filtroTelefone 
           background: #222;
           color: white;
           border: none;
+        }
+        .btn-limpar {
+          display: inline-block;
+          padding: 10px 14px;
+          border-radius: 8px;
+          border: 1px solid #ccc;
+          background: #f5f5f5;
+          color: #222;
+          text-decoration: none;
         }
         table {
           width: 100%;
@@ -282,55 +310,56 @@ function renderizarPainelHtml(reclamacoes, filtroProtocolo = "", filtroTelefone 
 
       <div class="box">
         <h2>Resumo</h2>
-        <p><strong>Total listado:</strong> ${total}</p>
-        <p><strong>Abertas:</strong> ${totalAbertas}</p>
-        <p><strong>Em análise:</strong> ${totalEmAnalise}</p>
-        <p><strong>Respondido:</strong> ${totalRespondido}</p>
-        <p><strong>Finalizado:</strong> ${totalFinalizado}</p>
+        <div class="resumo-grid">
+          <div class="resumo-item"><strong>Total listado:</strong><br>${total}</div>
+          <div class="resumo-item"><strong>Abertas:</strong><br>${totalAbertas}</div>
+          <div class="resumo-item"><strong>Em análise:</strong><br>${totalEmAnalise}</div>
+          <div class="resumo-item"><strong>Respondido:</strong><br>${totalRespondido}</div>
+          <div class="resumo-item"><strong>Finalizado:</strong><br>${totalFinalizado}</div>
+        </div>
       </div>
 
       <div class="box">
         <form class="busca" method="GET" action="/painel">
-      <input
-        type="text"
-        name="protocolo"
-        placeholder="Buscar por protocolo"
-        value="${escapeHtml(filtroProtocolo)}"
-        style="min-width: 160px;"
-    />
-
-      <input
-       type="text"
-       name="telefone"
-       placeholder="Buscar por telefone"
-       value="${escapeHtml(filtroTelefone)}"
-       style="min-width: 160px;"
-    />
-      <input
-       type="text"
-       name="nome"
-       placeholder="Buscar por nome"
-       value="${escapeHtml(filtroNome)}"
-       style="min-width: 160px;"
-    />
-      <select name="categoria">
-       <option value="">Todas as categorias</option>
-       <option value="Barulho" ${filtroCategoria === "Barulho" ? "selected" : ""}>Barulho</option>
-       <option value="Limpeza" ${filtroCategoria === "Limpeza" ? "selected" : ""}>Limpeza</option>
-       <option value="Segurança" ${filtroCategoria === "Segurança" ? "selected" : ""}>Segurança</option>
-       <option value="Manutenção" ${filtroCategoria === "Manutenção" ? "selected" : ""}>Manutenção</option>
-       <option value="Outro" ${filtroCategoria === "Outro" ? "selected" : ""}>Outro</option>
-    </select>
-      <select name="status">
-       <option value="">Todos os status</option>
-       <option value="aberto" ${filtroStatus === "aberto" ? "selected" : ""}>aberto</option>
-       <option value="em_analise" ${filtroStatus === "em_analise" ? "selected" : ""}>em_analise</option>
-       <option value="respondido" ${filtroStatus === "respondido" ? "selected" : ""}>respondido</option>
-       <option value="finalizado" ${filtroStatus === "finalizado" ? "selected" : ""}>finalizado</option>
-    </select>
-  <button type="submit">Buscar</button>
-  <a href="/painel" style="display:inline-block; padding:10px 14px; border-radius:8px; border:1px solid #ccc; background:#f5f5f5; color:#222; text-decoration:none;">Limpar filtros</a>
-  </form>
+          <input
+            type="text"
+            name="protocolo"
+            placeholder="Buscar por protocolo"
+            value="${escapeHtml(filtroProtocolo)}"
+            style="min-width: 160px;"
+          />
+          <input
+            type="text"
+            name="telefone"
+            placeholder="Buscar por telefone"
+            value="${escapeHtml(filtroTelefone)}"
+            style="min-width: 160px;"
+          />
+          <input
+            type="text"
+            name="nome"
+            placeholder="Buscar por nome"
+            value="${escapeHtml(filtroNome)}"
+            style="min-width: 160px;"
+          />
+          <select name="categoria">
+            <option value="">Todas as categorias</option>
+            <option value="Barulho" ${filtroCategoria === "Barulho" ? "selected" : ""}>Barulho</option>
+            <option value="Limpeza" ${filtroCategoria === "Limpeza" ? "selected" : ""}>Limpeza</option>
+            <option value="Segurança" ${filtroCategoria === "Segurança" ? "selected" : ""}>Segurança</option>
+            <option value="Manutenção" ${filtroCategoria === "Manutenção" ? "selected" : ""}>Manutenção</option>
+            <option value="Outro" ${filtroCategoria === "Outro" ? "selected" : ""}>Outro</option>
+          </select>
+          <select name="status">
+            <option value="">Todos os status</option>
+            <option value="aberto" ${filtroStatus === "aberto" ? "selected" : ""}>aberto</option>
+            <option value="em_analise" ${filtroStatus === "em_analise" ? "selected" : ""}>em_analise</option>
+            <option value="respondido" ${filtroStatus === "respondido" ? "selected" : ""}>respondido</option>
+            <option value="finalizado" ${filtroStatus === "finalizado" ? "selected" : ""}>finalizado</option>
+          </select>
+          <button type="submit">Buscar</button>
+          <a href="/painel" class="btn-limpar">Limpar filtros</a>
+        </form>
       </div>
 
       <div class="box">
@@ -347,11 +376,11 @@ function renderizarPainelHtml(reclamacoes, filtroProtocolo = "", filtroTelefone 
               <th>Status</th>
               <th>Criado em</th>
               <th>Histórico</th>
-              <th>Ação</th> 
+              <th>Ação</th>
             </tr>
           </thead>
           <tbody>
-            ${linhas || `<tr><td colspan="10">Nenhuma reclamação encontrada.</td></tr>`}
+            ${linhas || `<tr><td colspan="11">Nenhuma reclamação encontrada.</td></tr>`}
           </tbody>
         </table>
       </div>
@@ -359,6 +388,7 @@ function renderizarPainelHtml(reclamacoes, filtroProtocolo = "", filtroTelefone 
     </html>
   `;
 }
+
 
 function renderizarHistoricoHtml(protocolo, historico) {
   const linhas = historico.map((item) => {
