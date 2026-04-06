@@ -390,6 +390,7 @@ function renderizarPainelHtml(
 }
 
 
+
 function renderizarHistoricoHtml(protocolo, historico) {
   const linhas = historico.map((item) => {
     const data = new Date(item.criado_em).toLocaleString("pt-BR");
@@ -933,6 +934,7 @@ app.get("/painel", middlewareProtegePainel, async (req, res) => {
     res.status(500).send("Erro ao abrir o painel.");
   }
 });
+
 
 app.post("/painel/status", middlewareProtegePainel, async (req, res) => {
   try {
