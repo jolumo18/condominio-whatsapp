@@ -156,21 +156,7 @@ function montarResumo(sessao) {
   );
 }
 
-//function renderizarPainelHtml(reclamacoes, filtroProtocolo = "") {//
-function renderizarPainelHtml(
-  reclamacoes,
-  filtroProtocolo = "",
-  filtroTelefone = "",
-  filtroStatus = "",
-  filtroNome = "",
-  filtroCategoria = ""
-) {
-  const total = reclamacoes.length;
-  const totalAbertas = reclamacoes.filter((r) => r.status === "aberto").length;
-  const totalEmAnalise = reclamacoes.filter((r) => r.status === "em_analise").length;
-  const totalRespondido = reclamacoes.filter((r) => r.status === "respondido").length;
-  const totalFinalizado = reclamacoes.filter((r) => r.status === "finalizado").length;
-
+function renderizarPainelHtml(reclamacoes, filtroProtocolo = "") {
   const linhas = reclamacoes.map((r) => {
     const protocolo = escapeHtml(r.protocolo || "-");
     const nomeContato = escapeHtml(r.nome_contato || "-");
@@ -193,9 +179,6 @@ function renderizarPainelHtml(
         <td style="max-width: 320px; white-space: pre-wrap;">${descricao}</td>
         <td><strong>${status}</strong></td>
         <td>${criadoEm}</td>
-        <td>
-          <a href="/reclamacoes/${protocolo}/historico" target="_blank">Ver histórico</a>
-        </td>
         <td>
           <form method="POST" action="/painel/status" style="display:flex; flex-direction:column; gap:8px;">
             <input type="hidden" name="protocolo" value="${protocolo}" />
@@ -226,7 +209,7 @@ function renderizarPainelHtml(
           background: #f7f7f7;
           color: #222;
         }
-        h1, h2 {
+        h1 {
           margin-bottom: 8px;
         }
         .box {
@@ -235,17 +218,6 @@ function renderizarPainelHtml(
           padding: 16px;
           margin-bottom: 20px;
           box-shadow: 0 1px 6px rgba(0,0,0,0.08);
-        }
-        .resumo-grid {
-          display: grid;
-          grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
-          gap: 12px;
-        }
-        .resumo-item {
-          background: #f8f8f8;
-          border: 1px solid #e2e2e2;
-          border-radius: 8px;
-          padding: 12px;
         }
         form.busca {
           display: flex;
@@ -263,15 +235,6 @@ function renderizarPainelHtml(
           background: #222;
           color: white;
           border: none;
-        }
-        .btn-limpar {
-          display: inline-block;
-          padding: 10px 14px;
-          border-radius: 8px;
-          border: 1px solid #ccc;
-          background: #f5f5f5;
-          color: #222;
-          text-decoration: none;
         }
         table {
           width: 100%;
@@ -300,22 +263,11 @@ function renderizarPainelHtml(
     <body>
       <div class="topo">
         <div>
-          <h1>Painel de Reclamações novo</h1>
+          <h1>Painel de Reclamações</h1>
           <p>Use este painel para consultar protocolos e atualizar status.</p>
         </div>
         <div>
           <a href="/reclamacoes" target="_blank">Ver JSON</a>
-        </div>
-      </div>
-
-      <div class="box">
-        <h2>Resumo</h2>
-        <div class="resumo-grid">
-          <div class="resumo-item"><strong>Total listado:</strong><br>${total}</div>
-          <div class="resumo-item"><strong>Abertas:</strong><br>${totalAbertas}</div>
-          <div class="resumo-item"><strong>Em análise:</strong><br>${totalEmAnalise}</div>
-          <div class="resumo-item"><strong>Respondido:</strong><br>${totalRespondido}</div>
-          <div class="resumo-item"><strong>Finalizado:</strong><br>${totalFinalizado}</div>
         </div>
       </div>
 
@@ -326,39 +278,9 @@ function renderizarPainelHtml(
             name="protocolo"
             placeholder="Buscar por protocolo"
             value="${escapeHtml(filtroProtocolo)}"
-            style="min-width: 160px;"
+            style="min-width: 280px;"
           />
-          <input
-            type="text"
-            name="telefone"
-            placeholder="Buscar por telefone"
-            value="${escapeHtml(filtroTelefone)}"
-            style="min-width: 160px;"
-          />
-          <input
-            type="text"
-            name="nome"
-            placeholder="Buscar por nome"
-            value="${escapeHtml(filtroNome)}"
-            style="min-width: 160px;"
-          />
-          <select name="categoria">
-            <option value="">Todas as categorias</option>
-            <option value="Barulho" ${filtroCategoria === "Barulho" ? "selected" : ""}>Barulho</option>
-            <option value="Limpeza" ${filtroCategoria === "Limpeza" ? "selected" : ""}>Limpeza</option>
-            <option value="Segurança" ${filtroCategoria === "Segurança" ? "selected" : ""}>Segurança</option>
-            <option value="Manutenção" ${filtroCategoria === "Manutenção" ? "selected" : ""}>Manutenção</option>
-            <option value="Outro" ${filtroCategoria === "Outro" ? "selected" : ""}>Outro</option>
-          </select>
-          <select name="status">
-            <option value="">Todos os status</option>
-            <option value="aberto" ${filtroStatus === "aberto" ? "selected" : ""}>aberto</option>
-            <option value="em_analise" ${filtroStatus === "em_analise" ? "selected" : ""}>em_analise</option>
-            <option value="respondido" ${filtroStatus === "respondido" ? "selected" : ""}>respondido</option>
-            <option value="finalizado" ${filtroStatus === "finalizado" ? "selected" : ""}>finalizado</option>
-          </select>
           <button type="submit">Buscar</button>
-          <a href="/painel" class="btn-limpar">Limpar filtros</a>
         </form>
       </div>
 
@@ -375,96 +297,11 @@ function renderizarPainelHtml(
               <th>Descrição</th>
               <th>Status</th>
               <th>Criado em</th>
-              <th>Histórico</th>
               <th>Ação</th>
             </tr>
           </thead>
           <tbody>
-            ${linhas || `<tr><td colspan="11">Nenhuma reclamação encontrada.</td></tr>`}
-          </tbody>
-        </table>
-      </div>
-    </body>
-    </html>
-  `;
-}
-
-
-
-function renderizarHistoricoHtml(protocolo, historico) {
-  const linhas = historico.map((item) => {
-    const data = new Date(item.criado_em).toLocaleString("pt-BR");
-    const status = escapeHtml(item.status || "-");
-    const observacao = escapeHtml(item.observacao || "-");
-
-    return `
-      <tr>
-        <td>${data}</td>
-        <td>${status}</td>
-        <td>${observacao}</td>
-      </tr>
-    `;
-  }).join("");
-
-  return `
-    <!DOCTYPE html>
-    <html lang="pt-BR">
-    <head>
-      <meta charset="UTF-8" />
-      <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-      <title>Histórico da Reclamação</title>
-      <style>
-        body {
-          font-family: Arial, sans-serif;
-          margin: 24px;
-          background: #f7f7f7;
-          color: #222;
-        }
-        .box {
-          background: white;
-          border-radius: 10px;
-          padding: 16px;
-          margin-bottom: 20px;
-          box-shadow: 0 1px 6px rgba(0,0,0,0.08);
-        }
-        table {
-          width: 100%;
-          border-collapse: collapse;
-          background: white;
-        }
-        th, td {
-          border: 1px solid #ddd;
-          padding: 10px;
-          text-align: left;
-          font-size: 14px;
-          vertical-align: top;
-        }
-        th {
-          background: #f0f0f0;
-        }
-        a {
-          text-decoration: none;
-        }
-      </style>
-    </head>
-    <body>
-      <div class="box">
-        <h1>Histórico da Reclamação</h1>
-        <p><strong>Protocolo:</strong> ${escapeHtml(protocolo)}</p>
-        <p><a href="/painel">Voltar ao painel</a></p>
-      </div>
-
-      <div class="box">
-        <table>
-          <thead>
-            <tr>
-              <th>Data</th>
-              <th>Status</th>
-              <th>Observação</th>
-            </tr>
-          </thead>
-          <tbody>
-            ${linhas || `<tr><td colspan="3">Nenhum histórico encontrado.</td></tr>`}
+            ${linhas || `<tr><td colspan="10">Nenhuma reclamação encontrada.</td></tr>`}
           </tbody>
         </table>
       </div>
@@ -882,59 +719,28 @@ app.get("/reclamacoes/:protocolo", async (req, res) => {
 app.get("/painel", middlewareProtegePainel, async (req, res) => {
   try {
     const protocolo = normalizarTexto(req.query.protocolo || "");
-    const telefone = normalizarTexto(req.query.telefone || "");
-    const status = normalizarTexto(req.query.status || "").toLowerCase();
-    const nome = normalizarTexto(req.query.nome || "");
-    const categoria = normalizarTexto(req.query.categoria || "");
 
     let query = `
       SELECT id, protocolo, telefone, nome_contato, categoria, bloco, unidade, descricao, status, criado_em, atualizado_em
       FROM reclamacoes
     `;
-
     const values = [];
-    const condicoes = [];
 
     if (protocolo) {
+      query += ` WHERE protocolo ILIKE $1 `;
       values.push(`%${protocolo}%`);
-      condicoes.push(`protocolo ILIKE $${values.length}`);
-    }
-
-    if (telefone) {
-      values.push(`%${telefone}%`);
-      condicoes.push(`telefone ILIKE $${values.length}`);
-    }
-
-    if (nome) {
-      values.push(`%${nome}%`);
-      condicoes.push(`nome_contato ILIKE $${values.length}`);
-    }
-
-    if (categoria) {
-      values.push(categoria);
-      condicoes.push(`categoria = $${values.length}`);
-    }
-
-    if (status) {
-      values.push(status);
-      condicoes.push(`status = $${values.length}`);
-    }
-
-    if (condicoes.length > 0) {
-      query += ` WHERE ${condicoes.join(" AND ")} `;
     }
 
     query += ` ORDER BY criado_em DESC LIMIT 100 `;
 
     const { rows } = await pool.query(query, values);
 
-    res.send(renderizarPainelHtml(rows, protocolo, telefone, status, nome, categoria));
+    res.send(renderizarPainelHtml(rows, protocolo));
   } catch (err) {
     console.error("Erro ao abrir painel:", err);
     res.status(500).send("Erro ao abrir o painel.");
   }
 });
-
 
 app.post("/painel/status", middlewareProtegePainel, async (req, res) => {
   try {
@@ -997,10 +803,10 @@ app.get("/reclamacoes/:protocolo/historico", async (req, res) => {
       [protocolo]
     );
 
-    res.send(renderizarHistoricoHtml(protocolo, rows));
+    res.json(rows);
   } catch (err) {
     console.error("Erro ao buscar histórico:", err);
-    res.status(500).send("Erro ao buscar histórico.");
+    res.status(500).json({ error: "Erro ao buscar histórico." });
   }
 });
 app.post("/twilio-webhook", async (req, res) => {
