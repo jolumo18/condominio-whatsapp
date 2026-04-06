@@ -289,7 +289,6 @@ function renderizarPainelHtml(reclamacoes, filtroProtocolo = "", filtroTelefone 
          <p><strong>Finalizado:</strong> ${totalFinalizado}</p>
       </div>
 
-      <div class="box">
     <form class="busca" method="GET" action="/painel">
       <input
        type="text"
