@@ -158,11 +158,6 @@ function montarResumo(sessao) {
 
 //function renderizarPainelHtml(reclamacoes, filtroProtocolo = "") {//
 function renderizarPainelHtml(reclamacoes, filtroProtocolo = "", filtroTelefone = "", filtroStatus = "", filtroNome = "", filtroCategoria = "") {
-  const total = reclamacoes.length;
-    const totalAbertas = reclamacoes.filter((r) => r.status === "aberto").length;
-    const totalEmAnalise = reclamacoes.filter((r) => r.status === "em_analise").length;
-    const totalRespondido = reclamacoes.filter((r) => r.status === "respondido").length;
-    const totalFinalizado = reclamacoes.filter((r) => r.status === "finalizado").length;
   const linhas = reclamacoes.map((r) => {
     const protocolo = escapeHtml(r.protocolo || "-");
     const nomeContato = escapeHtml(r.nome_contato || "-");
@@ -281,46 +276,46 @@ function renderizarPainelHtml(reclamacoes, filtroProtocolo = "", filtroTelefone 
       </div>
 
       <div class="box">
-        <h2>Resumo</h2>
-        <p><strong>Total listado:</strong> ${total}</p>
-        <p><strong>Abertas:</strong> ${totalAbertas}</p>
-        <p><strong>Em análise:</strong> ${totalEmAnalise}</p>
-        <p><strong>Respondido:</strong> ${totalRespondido}</p>
-        <p><strong>Finalizado:</strong> ${totalFinalizado}</p>
-     </div>
-
-      <div class="box">
-      <form class="busca" method="GET" action="/painel">
+    <form class="busca" method="GET" action="/painel">
       <input
-        type="text"
-        name="protocolo"
-        placeholder="Buscar por protocolo"
-        value="${escapeHtml(filtroProtocolo)}"
-        style="min-width: 180px;"
-      />
+       type="text"
+       name="protocolo"
+       placeholder="Buscar por protocolo"
+       value="${escapeHtml(filtroProtocolo)}"
+       style="min-width: 160px;"
+    />
       <input
        type="text"
        name="telefone"
        placeholder="Buscar por telefone"
        value="${escapeHtml(filtroTelefone)}"
-       style="min-width: 180px;"
-      />
+       style="min-width: 160px;"
+    />
       <input
        type="text"
        name="nome"
        placeholder="Buscar por nome"
        value="${escapeHtml(filtroNome)}"
-       style="min-width: 180px;"
-      />
+       style="min-width: 160px;"
+    />
+      <select name="categoria">
+       <option value="">Todas as categorias</option>
+       <option value="Barulho" ${filtroCategoria === "Barulho" ? "selected" : ""}>Barulho</option>
+       <option value="Limpeza" ${filtroCategoria === "Limpeza" ? "selected" : ""}>Limpeza</option>
+       <option value="Segurança" ${filtroCategoria === "Segurança" ? "selected" : ""}>Segurança</option>
+       <option value="Manutenção" ${filtroCategoria === "Manutenção" ? "selected" : ""}>Manutenção</option>
+       <option value="Outro" ${filtroCategoria === "Outro" ? "selected" : ""}>Outro</option>
+    </select>
       <select name="status">
-      <option value="">Todos os status</option>
-      <option value="aberto" ${filtroStatus === "aberto" ? "selected" : ""}>aberto</option>
-      <option value="em_analise" ${filtroStatus === "em_analise" ? "selected" : ""}>em_analise</option>
-      <option value="respondido" ${filtroStatus === "respondido" ? "selected" : ""}>respondido</option>
-      <option value="finalizado" ${filtroStatus === "finalizado" ? "selected" : ""}>finalizado</option>
-     </select>
-     <button type="submit">Buscar</button>
-   </form>
+       <option value="">Todos os status</option>
+       <option value="aberto" ${filtroStatus === "aberto" ? "selected" : ""}>aberto</option>
+       <option value="em_analise" ${filtroStatus === "em_analise" ? "selected" : ""}>em_analise</option>
+       <option value="respondido" ${filtroStatus === "respondido" ? "selected" : ""}>respondido</option>
+       <option value="finalizado" ${filtroStatus === "finalizado" ? "selected" : ""}>finalizado</option>
+    </select>
+  <button type="submit">Buscar</button>
+  <a href="/painel" style="display:inline-block; padding:10px 14px; border-radius:8px; border:1px solid #ccc; background:#f5f5f5; color:#222; text-decoration:none;">Limpar filtros</a>
+  </form>
       </div>
 
       <div class="box">
@@ -844,6 +839,7 @@ app.get("/painel", middlewareProtegePainel, async (req, res) => {
     const telefone = normalizarTexto(req.query.telefone || "");
     const status = normalizarTexto(req.query.status || "").toLowerCase();
     const nome = normalizarTexto(req.query.nome || "");
+    const categoria = normalizarTexto(req.query.categoria || "");
 
     let query = `
       SELECT id, protocolo, telefone, nome_contato, categoria, bloco, unidade, descricao, status, criado_em, atualizado_em
@@ -868,6 +864,11 @@ app.get("/painel", middlewareProtegePainel, async (req, res) => {
       condicoes.push(`nome_contato ILIKE $${values.length}`);
     }
 
+    if (categoria) {
+      values.push(categoria);
+      condicoes.push(`categoria = $${values.length}`);
+    }
+
     if (status) {
       values.push(status);
       condicoes.push(`status = $${values.length}`);
@@ -881,13 +882,12 @@ app.get("/painel", middlewareProtegePainel, async (req, res) => {
 
     const { rows } = await pool.query(query, values);
 
-    res.send(renderizarPainelHtml(rows, protocolo, telefone, status, nome));
+    res.send(renderizarPainelHtml(rows, protocolo, telefone, status, nome, categoria));
   } catch (err) {
     console.error("Erro ao abrir painel:", err);
     res.status(500).send("Erro ao abrir o painel.");
   }
 });
-
 
 app.post("/painel/status", middlewareProtegePainel, async (req, res) => {
   try {
