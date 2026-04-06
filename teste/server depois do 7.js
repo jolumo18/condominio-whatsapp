@@ -158,6 +158,11 @@ function montarResumo(sessao) {
 
 //function renderizarPainelHtml(reclamacoes, filtroProtocolo = "") {//
 function renderizarPainelHtml(reclamacoes, filtroProtocolo = "", filtroTelefone = "", filtroStatus = "", filtroNome = "", filtroCategoria = "") {
+  const total = reclamacoes.length;
+    const totalAbertas = reclamacoes.filter((r) => r.status === "aberto").length;
+    const totalEmAnalise = reclamacoes.filter((r) => r.status === "em_analise").length;
+    const totalRespondido = reclamacoes.filter((r) => r.status === "respondido").length;
+    const totalFinalizado = reclamacoes.filter((r) => r.status === "finalizado").length;
   const linhas = reclamacoes.map((r) => {
     const protocolo = escapeHtml(r.protocolo || "-");
     const nomeContato = escapeHtml(r.nome_contato || "-");
@@ -276,28 +281,37 @@ function renderizarPainelHtml(reclamacoes, filtroProtocolo = "", filtroTelefone 
       </div>
 
       <div class="box">
-    <form class="busca" method="GET" action="/painel">
-      <input
+         <h2>Resumo</h2>
+         <p><strong>Total listado:</strong> ${total}</p>
+         <p><strong>Abertas:</strong> ${totalAbertas}</p>
+         <p><strong>Em análise:</strong> ${totalEmAnalise}</p>
+         <p><strong>Respondido:</strong> ${totalRespondido}</p>
+         <p><strong>Finalizado:</strong> ${totalFinalizado}</p>
+      </div>
+
+      <div class="box">
+       <form class="busca" method="GET" action="/painel">
+       <input
        type="text"
        name="protocolo"
        placeholder="Buscar por protocolo"
        value="${escapeHtml(filtroProtocolo)}"
        style="min-width: 160px;"
-    />
+      />
       <input
        type="text"
        name="telefone"
        placeholder="Buscar por telefone"
        value="${escapeHtml(filtroTelefone)}"
        style="min-width: 160px;"
-    />
+      />
       <input
        type="text"
        name="nome"
        placeholder="Buscar por nome"
        value="${escapeHtml(filtroNome)}"
        style="min-width: 160px;"
-    />
+      />
       <select name="categoria">
        <option value="">Todas as categorias</option>
        <option value="Barulho" ${filtroCategoria === "Barulho" ? "selected" : ""}>Barulho</option>
@@ -305,14 +319,14 @@ function renderizarPainelHtml(reclamacoes, filtroProtocolo = "", filtroTelefone 
        <option value="Segurança" ${filtroCategoria === "Segurança" ? "selected" : ""}>Segurança</option>
        <option value="Manutenção" ${filtroCategoria === "Manutenção" ? "selected" : ""}>Manutenção</option>
        <option value="Outro" ${filtroCategoria === "Outro" ? "selected" : ""}>Outro</option>
-    </select>
+      </select>
       <select name="status">
        <option value="">Todos os status</option>
        <option value="aberto" ${filtroStatus === "aberto" ? "selected" : ""}>aberto</option>
        <option value="em_analise" ${filtroStatus === "em_analise" ? "selected" : ""}>em_analise</option>
        <option value="respondido" ${filtroStatus === "respondido" ? "selected" : ""}>respondido</option>
        <option value="finalizado" ${filtroStatus === "finalizado" ? "selected" : ""}>finalizado</option>
-    </select>
+      </select>
   <button type="submit">Buscar</button>
   <a href="/painel" style="display:inline-block; padding:10px 14px; border-radius:8px; border:1px solid #ccc; background:#f5f5f5; color:#222; text-decoration:none;">Limpar filtros</a>
   </form>
