@@ -315,7 +315,7 @@ function renderizarPainelHtml(reclamacoes, filtroProtocolo = "", filtroTelefone 
     </select>
   <button type="submit">Buscar</button>
   <a href="/painel" style="display:inline-block; padding:10px 14px; border-radius:8px; border:1px solid #ccc; background:#f5f5f5; color:#222; text-decoration:none;">Limpar filtros</a>
-  </form>>
+  </form>
       </div>
 
       <div class="box">
