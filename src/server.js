@@ -158,6 +158,11 @@ function montarResumo(sessao) {
 
 //function renderizarPainelHtml(reclamacoes, filtroProtocolo = "") {//
 function renderizarPainelHtml(reclamacoes, filtroProtocolo = "", filtroTelefone = "", filtroStatus = "", filtroNome = "", filtroCategoria = "") {
+  const total = reclamacoes.length;
+    const totalAbertas = reclamacoes.filter((r) => r.status === "aberto").length;
+    const totalEmAnalise = reclamacoes.filter((r) => r.status === "em_analise").length;
+    const totalRespondido = reclamacoes.filter((r) => r.status === "respondido").length;
+    const totalFinalizado = reclamacoes.filter((r) => r.status === "finalizado").length;
   const linhas = reclamacoes.map((r) => {
     const protocolo = escapeHtml(r.protocolo || "-");
     const nomeContato = escapeHtml(r.nome_contato || "-");
@@ -273,6 +278,15 @@ function renderizarPainelHtml(reclamacoes, filtroProtocolo = "", filtroTelefone 
         <div>
           <a href="/reclamacoes" target="_blank">Ver JSON</a>
         </div>
+      </div>
+
+      <div class="box">
+         <h2>Resumo</h2>
+         <p><strong>Total listado:</strong> ${total}</p>
+         <p><strong>Abertas:</strong> ${totalAbertas}</p>
+         <p><strong>Em análise:</strong> ${totalEmAnalise}</p>
+         <p><strong>Respondido:</strong> ${totalRespondido}</p>
+         <p><strong>Finalizado:</strong> ${totalFinalizado}</p>
       </div>
 
       <div class="box">
