@@ -315,43 +315,6 @@ function renderizarPainelHtml(
 
       mediaPorDia = reclamacoes.length / dias;
     }
-    let mediaBarulho = 0;
-    let mediaLimpeza = 0;
-    let mediaSeguranca = 0;
-    let mediaManutencao = 0;
-    let mediaOutro = 0;
-
-    if (reclamacoes.length > 0) {
-      const datas = reclamacoes.map(r => new Date(r.criado_em));
-      const menorData = new Date(Math.min(...datas));
-      const maiorData = new Date(Math.max(...datas));
-
-      const diferencaMs = maiorData - menorData;
-      const dias = Math.max(1, Math.ceil(diferencaMs / (1000 * 60 * 60 * 24)));
-
-      mediaBarulho = totalBarulho / dias;
-      mediaLimpeza = totalLimpeza / dias;
-      mediaSeguranca = totalSeguranca / dias;
-      mediaManutencao = totalManutencao / dias;
-      mediaOutro = totalOutro / dias;
-    }
-    let mediaHorasAtualizacao = 0;
-
-  if (reclamacoes.length > 0) {
-    let somaHoras = 0;
-
-    for (const r of reclamacoes) {
-      const criado = new Date(r.criado_em);
-      const atualizado = new Date(r.atualizado_em || r.criado_em);
-
-      const diferencaMs = atualizado - criado;
-      const diferencaHoras = diferencaMs / (1000 * 60 * 60);
-
-      somaHoras += diferencaHoras;
-    }
-
-    mediaHorasAtualizacao = somaHoras / reclamacoes.length;
-  } 
     const linhas = reclamacoes.map((r) => {
     const protocolo = escapeHtml(r.protocolo || "-");
     const nomeContato = escapeHtml(r.nome_contato || "-");
@@ -489,36 +452,8 @@ function renderizarPainelHtml(
           align-items: center;
           gap: 12px;
           flex-wrap: wrap;
-        }
-
         .grafico-linha {
           margin-bottom: 12px;
-        }
-
-        .grafico-label {
-          margin-bottom: 4px;
-          font-weight: bold;
-        }
-
-        .grafico-trilho {
-          width: 100%;
-          background: #ececec;
-          border-radius: 999px;
-          overflow: hidden;
-          height: 22px;
-        }
-
-        .grafico-barra {
-          height: 22px;
-          border-radius: 999px;
-          color: white;
-          font-size: 12px;
-          display: flex;
-          align-items: center;
-          justify-content: flex-end;
-          padding-right: 8px;
-          box-sizing: border-box;
-          white-space: nowrap;
         }
 
         .grafico-label {
@@ -552,7 +487,7 @@ function renderizarPainelHtml(
     <body>
       <div class="topo">
         <div>
-          <h1>Painel de Reclamações</h1>
+          <h1>Painel de Reclamações novo</h1>
           <p>Use este painel para consultar protocolos e atualizar status.</p>
         </div>
         <div style="display:flex; gap:10px; flex-wrap:wrap;">
@@ -800,17 +735,6 @@ function renderizarPainelHtml(
             ${mediaPorDia.toFixed(1)} reclamações por dia
           </div>
         </div>
-        <div class="box">
-          <h2>Média por categoria</h2>
-
-          <div class="resumo-grid">
-            <div class="resumo-item"><strong>Barulho:</strong><br>${mediaBarulho.toFixed(1)} por dia</div>
-            <div class="resumo-item"><strong>Limpeza:</strong><br>${mediaLimpeza.toFixed(1)} por dia</div>
-            <div class="resumo-item"><strong>Segurança:</strong><br>${mediaSeguranca.toFixed(1)} por dia</div>
-            <div class="resumo-item"><strong>Manutenção:</strong><br>${mediaManutencao.toFixed(1)} por dia</div>
-            <div class="resumo-item"><strong>Outro:</strong><br>${mediaOutro.toFixed(1)} por dia</div>
-          </div>
-        </div>
       </div>
 
       <div class="box">
@@ -891,7 +815,7 @@ function renderizarPainelHtml(
           <tbody>
             ${linhas || `
               <tr>
-                <td colspan="12">
+                <td colspan="11">
                   <div style="padding:16px; background:#fff8e1; border:1px solid #f0d98a; border-radius:8px; color:#7a5d00;">
                     <strong>Nenhuma reclamação encontrada.</strong><br>
                     Tente ajustar ou limpar os filtros para ver outros resultados.

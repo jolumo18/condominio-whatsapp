@@ -167,192 +167,22 @@ function renderizarPainelHtml(
   totalPaginas = 1,
   filtroOrdem = "desc",
   filtroDataInicio = "",
-  filtroDataFim = "",
-  totalGeral = 0,
-  totalFiltrado = 0
+  filtroDataFim = ""
 ) {
+  const total = reclamacoes.length;
   const totalAbertas = reclamacoes.filter((r) => r.status === "aberto").length;
   const totalEmAnalise = reclamacoes.filter((r) => r.status === "em_analise").length;
   const totalRespondido = reclamacoes.filter((r) => r.status === "respondido").length;
   const totalFinalizado = reclamacoes.filter((r) => r.status === "finalizado").length;
-  const maiorStatus = Math.max(
-    totalAbertas,
-    totalEmAnalise,
-    totalRespondido,
-    totalFinalizado,
-    1
-  );
-  const larguraAbertas = (totalAbertas / maiorStatus) * 100;
-  const larguraEmAnalise = (totalEmAnalise / maiorStatus) * 100;
-  const larguraRespondido = (totalRespondido / maiorStatus) * 100;
-  const larguraFinalizado = (totalFinalizado / maiorStatus) * 100;
-  const totalBarulho = reclamacoes.filter((r) => r.categoria === "Barulho").length;
-  const totalLimpeza = reclamacoes.filter((r) => r.categoria === "Limpeza").length;
-  const totalSeguranca = reclamacoes.filter((r) => r.categoria === "Segurança").length;
-  const totalManutencao = reclamacoes.filter((r) => r.categoria === "Manutenção").length;
-  const totalOutro = reclamacoes.filter((r) => r.categoria === "Outro").length;
-  const categoriasOrdenadas = [
-    { nome: "Barulho", total: totalBarulho },
-    { nome: "Limpeza", total: totalLimpeza },
-    { nome: "Segurança", total: totalSeguranca },
-    { nome: "Manutenção", total: totalManutencao },
-    { nome: "Outro", total: totalOutro }
-  ].sort((a, b) => b.total - a.total);
-  const maiorCategoria = Math.max(
-    totalBarulho,
-    totalLimpeza,
-    totalSeguranca,
-    totalManutencao,
-    totalOutro,
-    1
-  );
-
-  const larguraBarulho = (totalBarulho / maiorCategoria) * 100;
-  const larguraLimpeza = (totalLimpeza / maiorCategoria) * 100;
-  const larguraSeguranca = (totalSeguranca / maiorCategoria) * 100;
-  const larguraManutencao = (totalManutencao / maiorCategoria) * 100;
-  const larguraOutro = (totalOutro / maiorCategoria) * 100;
-  const filtrosAtivos = [];
-
-  if (filtroProtocolo) filtrosAtivos.push(`Protocolo: ${escapeHtml(filtroProtocolo)}`);
-  if (filtroTelefone) filtrosAtivos.push(`Telefone: ${escapeHtml(filtroTelefone)}`);
-  if (filtroNome) filtrosAtivos.push(`Nome: ${escapeHtml(filtroNome)}`);
-  if (filtroCategoria) filtrosAtivos.push(`Categoria: ${escapeHtml(filtroCategoria)}`);
-  if (filtroStatus) filtrosAtivos.push(`Status: ${escapeHtml(filtroStatus)}`);
-  if (filtroDataInicio) filtrosAtivos.push(`Data inicial: ${escapeHtml(filtroDataInicio)}`);
-  if (filtroDataFim) filtrosAtivos.push(`Data final: ${escapeHtml(filtroDataFim)}`);
-  if (filtroOrdem === "asc") filtrosAtivos.push("Ordem: Mais antigas");
-  if (filtroOrdem === "desc") filtrosAtivos.push("Ordem: Mais recentes");
   const estilosStatus = {
   aberto: "background:#fdecea;color:#b71c1c;padding:6px 10px;border-radius:999px;display:inline-block;font-weight:bold;",
   em_analise: "background:#fff8e1;color:#8d6e00;padding:6px 10px;border-radius:999px;display:inline-block;font-weight:bold;",
   respondido: "background:#e3f2fd;color:#1565c0;padding:6px 10px;border-radius:999px;display:inline-block;font-weight:bold;",
   finalizado: "background:#e8f5e9;color:#2e7d32;padding:6px 10px;border-radius:999px;display:inline-block;font-weight:bold;"
 };
-  const contagemPorDia = {};
 
-  for (const r of reclamacoes) {
-    const data = new Date(r.criado_em).toLocaleDateString("pt-BR");
-    contagemPorDia[data] = (contagemPorDia[data] || 0) + 1;
-  }
-
-  const diasOrdenados = Object.keys(contagemPorDia).sort((a, b) => {
-    const [da, ma, aa] = a.split("/").map(Number);
-    const [db, mb, ab] = b.split("/").map(Number);
-    return new Date(aa, ma - 1, da) - new Date(ab, mb - 1, db);
-  });
-
-  const maiorDia = Math.max(...diasOrdenados.map((dia) => contagemPorDia[dia]), 1);
   
-  const contagemPorBloco = {};
-
-  for (const r of reclamacoes) {
-    const bloco = (r.bloco || "Não informado").toUpperCase();
-    contagemPorBloco[bloco] = (contagemPorBloco[bloco] || 0) + 1;
-  }
-
-  const blocosOrdenados = Object.keys(contagemPorBloco).sort();
-
-  const maiorBloco = Math.max(
-    ...blocosOrdenados.map((b) => contagemPorBloco[b]),
-    1
-  );
-
-  const contagemPorUnidade = {};
-
-  for (const r of reclamacoes) {
-    const unidade = (r.unidade || "Não informada").toUpperCase();
-    contagemPorUnidade[unidade] = (contagemPorUnidade[unidade] || 0) + 1;
-  }
-
-  const unidadesOrdenadas = Object.keys(contagemPorUnidade).sort();
-
-  const maiorUnidade = Math.max(
-    ...unidadesOrdenadas.map((u) => contagemPorUnidade[u]),
-    1
-  );
-  const top5Blocos = [...blocosOrdenados]
-    .sort((a, b) => contagemPorBloco[b] - contagemPorBloco[a])
-    .slice(0, 5);
-
-  const top5Unidades = [...unidadesOrdenadas]
-    .sort((a, b) => contagemPorUnidade[b] - contagemPorUnidade[a])
-    .slice(0, 5);
-  const contagemPorTelefone = {};
-
-  for (const r of reclamacoes) {
-    const telefone = (r.telefone || "Não informado");
-    contagemPorTelefone[telefone] = (contagemPorTelefone[telefone] || 0) + 1;
-  }
-
-  const telefonesOrdenados = Object.keys(contagemPorTelefone);
-
-  const top5Telefones = telefonesOrdenados
-    .sort((a, b) => contagemPorTelefone[b] - contagemPorTelefone[a])
-    .slice(0, 5);
-    const contagemPorNome = {};
-
-    for (const r of reclamacoes) {
-      const nome = (r.nome_contato || "Não informado").toUpperCase();
-      contagemPorNome[nome] = (contagemPorNome[nome] || 0) + 1;
-    }
-
-    const nomesOrdenados = Object.keys(contagemPorNome);
-
-    const top5Nomes = nomesOrdenados
-      .sort((a, b) => contagemPorNome[b] - contagemPorNome[a])
-      .slice(0, 5);
-    let mediaPorDia = 0;
-
-    if (reclamacoes.length > 0) {
-      const datas = reclamacoes.map(r => new Date(r.criado_em));
-      
-      const menorData = new Date(Math.min(...datas));
-      const maiorData = new Date(Math.max(...datas));
-
-      const diferencaMs = maiorData - menorData;
-      const dias = Math.max(1, Math.ceil(diferencaMs / (1000 * 60 * 60 * 24)));
-
-      mediaPorDia = reclamacoes.length / dias;
-    }
-    let mediaBarulho = 0;
-    let mediaLimpeza = 0;
-    let mediaSeguranca = 0;
-    let mediaManutencao = 0;
-    let mediaOutro = 0;
-
-    if (reclamacoes.length > 0) {
-      const datas = reclamacoes.map(r => new Date(r.criado_em));
-      const menorData = new Date(Math.min(...datas));
-      const maiorData = new Date(Math.max(...datas));
-
-      const diferencaMs = maiorData - menorData;
-      const dias = Math.max(1, Math.ceil(diferencaMs / (1000 * 60 * 60 * 24)));
-
-      mediaBarulho = totalBarulho / dias;
-      mediaLimpeza = totalLimpeza / dias;
-      mediaSeguranca = totalSeguranca / dias;
-      mediaManutencao = totalManutencao / dias;
-      mediaOutro = totalOutro / dias;
-    }
-    let mediaHorasAtualizacao = 0;
-
-  if (reclamacoes.length > 0) {
-    let somaHoras = 0;
-
-    for (const r of reclamacoes) {
-      const criado = new Date(r.criado_em);
-      const atualizado = new Date(r.atualizado_em || r.criado_em);
-
-      const diferencaMs = atualizado - criado;
-      const diferencaHoras = diferencaMs / (1000 * 60 * 60);
-
-      somaHoras += diferencaHoras;
-    }
-
-    mediaHorasAtualizacao = somaHoras / reclamacoes.length;
-  } 
-    const linhas = reclamacoes.map((r) => {
+  const linhas = reclamacoes.map((r) => {
     const protocolo = escapeHtml(r.protocolo || "-");
     const nomeContato = escapeHtml(r.nome_contato || "-");
     const telefone = escapeHtml(r.telefone || "-");
@@ -383,10 +213,7 @@ function renderizarPainelHtml(
           <a href="/reclamacoes/${protocolo}/historico" target="_blank">Ver histórico</a>
         </td>
         <td>
-          <a href="/reclamacoes/${protocolo}/detalhes" target="_blank">Ver detalhes</a>
-        </td>
-        <td>
-          <form method="POST" action="/painel/status" style="display:flex; flex-direction:column; gap:8px;">
+            <form method="POST" action="/painel/status" style="display:flex; flex-direction:column; gap:8px;">
               <input type="hidden" name="protocolo" value="${protocolo}" />
               <select name="status" required>
               <option value="aberto" ${r.status === "aberto" ? "selected" : ""}>aberto</option>
@@ -490,326 +317,28 @@ function renderizarPainelHtml(
           gap: 12px;
           flex-wrap: wrap;
         }
-
-        .grafico-linha {
-          margin-bottom: 12px;
-        }
-
-        .grafico-label {
-          margin-bottom: 4px;
-          font-weight: bold;
-        }
-
-        .grafico-trilho {
-          width: 100%;
-          background: #ececec;
-          border-radius: 999px;
-          overflow: hidden;
-          height: 22px;
-        }
-
-        .grafico-barra {
-          height: 22px;
-          border-radius: 999px;
-          color: white;
-          font-size: 12px;
-          display: flex;
-          align-items: center;
-          justify-content: flex-end;
-          padding-right: 8px;
-          box-sizing: border-box;
-          white-space: nowrap;
-        }
-
-        .grafico-label {
-          margin-bottom: 4px;
-          font-weight: bold;
-        }
-
-        .grafico-trilho {
-          width: 100%;
-          background: #ececec;
-          border-radius: 999px;
-          overflow: hidden;
-          height: 22px;
-        }
-
-        .grafico-barra {
-          height: 22px;
-          border-radius: 999px;
-          color: white;
-          font-size: 12px;
-          display: flex;
-          align-items: center;
-          justify-content: flex-end;
-          padding-right: 8px;
-          box-sizing: border-box;
-          white-space: nowrap;
-        }
-        }
       </style>
     </head>
     <body>
       <div class="topo">
         <div>
-          <h1>Painel de Reclamações</h1>
+          <h1>Painel de Reclamações novo</h1>
           <p>Use este painel para consultar protocolos e atualizar status.</p>
         </div>
         <div style="display:flex; gap:10px; flex-wrap:wrap;">
           <a href="/reclamacoes" target="_blank">Ver JSON</a>
-          <a href="/exportar-csv?protocolo=${encodeURIComponent(filtroProtocolo)}&telefone=${encodeURIComponent(filtroTelefone)}&nome=${encodeURIComponent(filtroNome)}&categoria=${encodeURIComponent(filtroCategoria)}&status=${encodeURIComponent(filtroStatus)}&ordem=${encodeURIComponent(filtroOrdem)}&data_inicio=${encodeURIComponent(filtroDataInicio)}&data_fim=${encodeURIComponent(filtroDataFim)}">Exportar CSV</a>
+          <a href="/exportar-csv?protocolo=${encodeURIComponent(filtroProtocolo)}&telefone=${encodeURIComponent(filtroTelefone)}&nome=${encodeURIComponent(filtroNome)}&categoria=${encodeURIComponent(filtroCategoria)}&status=${encodeURIComponent(filtroStatus)}&ordem=${encodeURIComponent(filtroOrdem)}">Exportar CSV</a>
         </div>
       </div>
-
-      ${filtrosAtivos.length > 0 ? `
-        <div class="box">
-          <div style="display:flex; justify-content:space-between; align-items:center; gap:12px; flex-wrap:wrap; margin-bottom:12px;">
-            <h2 style="margin:0;">Filtros ativos</h2>
-            <a href="/painel" class="btn-limpar">Limpar todos os filtros</a>
-          </div>
-
-          <div style="display:flex; gap:8px; flex-wrap:wrap;">
-            ${filtrosAtivos.map((filtro) => `
-              <span style="background:#eef3ff;border:1px solid #c9d7ff;color:#1f3a8a;padding:6px 10px;border-radius:999px;font-size:14px;">
-                ${filtro}
-              </span>
-            `).join("")}
-          </div>
-        </div>
-      ` : ""}
 
       <div class="box">
         <h2>Resumo</h2>
         <div class="resumo-grid">
-          <div class="resumo-item"><strong>Total geral:</strong><br>${totalGeral}</div>
-          <div class="resumo-item"><strong>Total filtrado:</strong><br>${totalFiltrado}</div>
-          <div class="resumo-item"><strong>Abertas filtradas:</strong><br>${totalAbertas}</div>
-          <div class="resumo-item"><strong>Em análise filtradas:</strong><br>${totalEmAnalise}</div>
-          <div class="resumo-item"><strong>Respondidas filtradas:</strong><br>${totalRespondido}</div>
-          <div class="resumo-item"><strong>Finalizadas filtradas:</strong><br>${totalFinalizado}</div>
-          <div class="resumo-item"><strong>Barulho:</strong><br>${totalBarulho}</div>
-          <div class="resumo-item"><strong>Limpeza:</strong><br>${totalLimpeza}</div>
-          <div class="resumo-item"><strong>Segurança:</strong><br>${totalSeguranca}</div>
-          <div class="resumo-item"><strong>Manutenção:</strong><br>${totalManutencao}</div>
-          <div class="resumo-item"><strong>Outro:</strong><br>${totalOutro}</div>
-        </div>
-        <div class="box">
-          <h2>Gráfico por status</h2>
-
-          <div class="grafico-linha">
-            <div class="grafico-label">Aberto (${totalAbertas})</div>
-            <div class="grafico-trilho">
-              <div class="grafico-barra" style="width:${larguraAbertas}%; background:#c62828;">
-                ${totalAbertas}
-              </div>
-            </div>
-          </div>
-
-          <div class="grafico-linha">
-            <div class="grafico-label">Em análise (${totalEmAnalise})</div>
-            <div class="grafico-trilho">
-              <div class="grafico-barra" style="width:${larguraEmAnalise}%; background:#f9a825;">
-                ${totalEmAnalise}
-              </div>
-            </div>
-          </div>
-
-          <div class="grafico-linha">
-            <div class="grafico-label">Respondido (${totalRespondido})</div>
-            <div class="grafico-trilho">
-              <div class="grafico-barra" style="width:${larguraRespondido}%; background:#1565c0;">
-                ${totalRespondido}
-              </div>
-            </div>
-          </div>
-
-          <div class="grafico-linha">
-            <div class="grafico-label">Finalizado (${totalFinalizado})</div>
-            <div class="grafico-trilho">
-              <div class="grafico-barra" style="width:${larguraFinalizado}%; background:#2e7d32;">
-                ${totalFinalizado}
-              </div>
-            </div>
-          </div>
-        </div>
-        <div class="box">
-          <h2>Gráfico por categoria</h2>
-
-          <div class="grafico-linha">
-            <div class="grafico-label">Barulho (${totalBarulho})</div>
-            <div class="grafico-trilho">
-              <div class="grafico-barra" style="width:${larguraBarulho}%; background:#8e24aa;">
-                ${totalBarulho}
-              </div>
-            </div>
-          </div>
-
-          <div class="grafico-linha">
-            <div class="grafico-label">Limpeza (${totalLimpeza})</div>
-            <div class="grafico-trilho">
-              <div class="grafico-barra" style="width:${larguraLimpeza}%; background:#00897b;">
-                ${totalLimpeza}
-              </div>
-            </div>
-          </div>
-
-          <div class="grafico-linha">
-            <div class="grafico-label">Segurança (${totalSeguranca})</div>
-            <div class="grafico-trilho">
-              <div class="grafico-barra" style="width:${larguraSeguranca}%; background:#3949ab;">
-                ${totalSeguranca}
-              </div>
-            </div>
-          </div>
-
-          <div class="grafico-linha">
-            <div class="grafico-label">Manutenção (${totalManutencao})</div>
-            <div class="grafico-trilho">
-              <div class="grafico-barra" style="width:${larguraManutencao}%; background:#ef6c00;">
-                ${totalManutencao}
-              </div>
-            </div>
-          </div>
-
-          <div class="grafico-linha">
-            <div class="grafico-label">Outro (${totalOutro})</div>
-            <div class="grafico-trilho">
-              <div class="grafico-barra" style="width:${larguraOutro}%; background:#6d4c41;">
-                ${totalOutro}
-              </div>
-            </div>
-          </div>
-        </div>
-        <div class="box">
-          <h2>Gráfico por dia</h2>
-
-          ${diasOrdenados.length > 0 ? diasOrdenados.map((dia) => {
-            const quantidade = contagemPorDia[dia];
-            const largura = (quantidade / maiorDia) * 100;
-
-            return `
-              <div class="grafico-linha">
-                <div class="grafico-label">${dia} (${quantidade})</div>
-                <div class="grafico-trilho">
-                  <div class="grafico-barra" style="width:${largura}%; background:#546e7a;">
-                    ${quantidade}
-                  </div>
-                </div>
-              </div>
-            `;
-          }).join("") : `
-            <p>Nenhum dado disponível para gráfico por dia.</p>
-          `}
-        </div>
-        <div class="box">
-          <h2>Gráfico por bloco</h2>
-
-          ${blocosOrdenados.length > 0 ? blocosOrdenados.map((bloco) => {
-            const quantidade = contagemPorBloco[bloco];
-            const largura = (quantidade / maiorBloco) * 100;
-
-            return `
-              <div class="grafico-linha">
-                <div class="grafico-label">Bloco ${bloco} (${quantidade})</div>
-                <div class="grafico-trilho">
-                  <div class="grafico-barra" style="width:${largura}%; background:#00838f;">
-                    ${quantidade}
-                  </div>
-                </div>
-              </div>
-            `;
-          }).join("") : `
-            <p>Nenhum dado disponível para gráfico por bloco.</p>
-          `}
-        </div>
-        <div class="box">
-          <h2>Gráfico por unidade</h2>
-
-          ${unidadesOrdenadas.length > 0 ? unidadesOrdenadas.map((unidade) => {
-            const quantidade = contagemPorUnidade[unidade];
-            const largura = (quantidade / maiorUnidade) * 100;
-
-            return `
-              <div class="grafico-linha">
-                <div class="grafico-label">Unidade ${unidade} (${quantidade})</div>
-                <div class="grafico-trilho">
-                  <div class="grafico-barra" style="width:${largura}%; background:#5e35b1;">
-                    ${quantidade}
-                  </div>
-                </div>
-              </div>
-            `;
-          }).join("") : `
-            <p>Nenhum dado disponível para gráfico por unidade.</p>
-          `}
-        </div>
-        <div class="box">
-          <h2>Top 5 blocos e unidades</h2>
-
-          <div class="resumo-grid">
-            <div class="resumo-item">
-              <strong>Top 5 blocos</strong><br><br>
-              ${top5Blocos.length > 0
-                ? top5Blocos.map((bloco, index) => `${index + 1}. Bloco ${bloco} (${contagemPorBloco[bloco]})`).join("<br>")
-                : "Sem dados"}
-            </div>
-
-            <div class="resumo-item">
-              <strong>Top 5 unidades</strong><br><br>
-              ${top5Unidades.length > 0
-                ? top5Unidades.map((unidade, index) => `${index + 1}. Unidade ${unidade} (${contagemPorUnidade[unidade]})`).join("<br>")
-                : "Sem dados"}
-            </div>
-          </div>
-        </div>
-        <div class="box">
-          <h2>Ranking de categorias</h2>
-
-          <div class="resumo-item">
-            ${categoriasOrdenadas.map((cat, index) => `
-              ${index + 1}. ${cat.nome} (${cat.total})
-            `).join("<br>")}
-          </div>
-        </div>
-        <div class="box">
-          <h2>Top 5 telefones</h2>
-
-          <div class="resumo-item">
-            ${top5Telefones.length > 0
-              ? top5Telefones.map((tel, index) => `
-                ${index + 1}. ${tel} (${contagemPorTelefone[tel]})
-              `).join("<br>")
-              : "Sem dados"}
-          </div>
-        </div>
-        <div class="box">
-          <h2>Top 5 moradores</h2>
-
-          <div class="resumo-item">
-            ${top5Nomes.length > 0
-              ? top5Nomes.map((nome, index) => `
-                ${index + 1}. ${nome} (${contagemPorNome[nome]})
-              `).join("<br>")
-              : "Sem dados"}
-          </div>
-        </div>
-        <div class="box">
-          <h2>Média de reclamações</h2>
-
-          <div class="resumo-item">
-            ${mediaPorDia.toFixed(1)} reclamações por dia
-          </div>
-        </div>
-        <div class="box">
-          <h2>Média por categoria</h2>
-
-          <div class="resumo-grid">
-            <div class="resumo-item"><strong>Barulho:</strong><br>${mediaBarulho.toFixed(1)} por dia</div>
-            <div class="resumo-item"><strong>Limpeza:</strong><br>${mediaLimpeza.toFixed(1)} por dia</div>
-            <div class="resumo-item"><strong>Segurança:</strong><br>${mediaSeguranca.toFixed(1)} por dia</div>
-            <div class="resumo-item"><strong>Manutenção:</strong><br>${mediaManutencao.toFixed(1)} por dia</div>
-            <div class="resumo-item"><strong>Outro:</strong><br>${mediaOutro.toFixed(1)} por dia</div>
-          </div>
+          <div class="resumo-item"><strong>Total listado:</strong><br>${total}</div>
+          <div class="resumo-item"><strong>Abertas:</strong><br>${totalAbertas}</div>
+          <div class="resumo-item"><strong>Em análise:</strong><br>${totalEmAnalise}</div>
+          <div class="resumo-item"><strong>Respondido:</strong><br>${totalRespondido}</div>
+          <div class="resumo-item"><strong>Finalizado:</strong><br>${totalFinalizado}</div>
         </div>
       </div>
 
@@ -884,30 +413,20 @@ function renderizarPainelHtml(
               <th>Status</th>
               <th>Criado em</th>
               <th>Histórico</th>
-              <th>Detalhes</th>
               <th>Ação</th>
             </tr>
           </thead>
           <tbody>
-            ${linhas || `
-              <tr>
-                <td colspan="12">
-                  <div style="padding:16px; background:#fff8e1; border:1px solid #f0d98a; border-radius:8px; color:#7a5d00;">
-                    <strong>Nenhuma reclamação encontrada.</strong><br>
-                    Tente ajustar ou limpar os filtros para ver outros resultados.
-                  </div>
-                </td>
-              </tr>
-            `}
+            ${linhas || `<tr><td colspan="11">Nenhuma reclamação encontrada.</td></tr>`}
           </tbody>
     </table>
           </div>
 
           <div class="box">
             <div style="display:flex; gap:8px; flex-wrap:wrap;">
-              ${paginaAtual > 1 ? `<a class="btn-limpar" href="/painel?protocolo=${encodeURIComponent(filtroProtocolo)}&telefone=${encodeURIComponent(filtroTelefone)}&nome=${encodeURIComponent(filtroNome)}&categoria=${encodeURIComponent(filtroCategoria)}&status=${encodeURIComponent(filtroStatus)}&ordem=${encodeURIComponent(filtroOrdem)}&data_inicio=${encodeURIComponent(filtroDataInicio)}&data_fim=${encodeURIComponent(filtroDataFim)}&pagina=${paginaAtual - 1}">Página anterior</a>` : ""}
+              ${paginaAtual > 1 ? `<a class="btn-limpar" href="/painel?protocolo=${encodeURIComponent(filtroProtocolo)}&telefone=${encodeURIComponent(filtroTelefone)}&nome=${encodeURIComponent(filtroNome)}&categoria=${encodeURIComponent(filtroCategoria)}&status=${encodeURIComponent(filtroStatus)}&pagina=${paginaAtual - 1}&ordem=${encodeURIComponent(filtroOrdem)}">Página anterior</a>` : ""}
               <span style="padding:10px 14px;">Página ${paginaAtual} de ${totalPaginas}</span>
-              ${paginaAtual < totalPaginas ? `<a class="btn-limpar" href="/painel?protocolo=${encodeURIComponent(filtroProtocolo)}&telefone=${encodeURIComponent(filtroTelefone)}&nome=${encodeURIComponent(filtroNome)}&categoria=${encodeURIComponent(filtroCategoria)}&status=${encodeURIComponent(filtroStatus)}&ordem=${encodeURIComponent(filtroOrdem)}&data_inicio=${encodeURIComponent(filtroDataInicio)}&data_fim=${encodeURIComponent(filtroDataFim)}&pagina=${paginaAtual + 1}">Próxima página</a>` : ""}
+              ${paginaAtual < totalPaginas ? `<a class="btn-limpar" href="/painel?protocolo=${encodeURIComponent(filtroProtocolo)}&telefone=${encodeURIComponent(filtroTelefone)}&nome=${encodeURIComponent(filtroNome)}&categoria=${encodeURIComponent(filtroCategoria)}&status=${encodeURIComponent(filtroStatus)}&pagina=${paginaAtual + 1}&ordem=${encodeURIComponent(filtroOrdem)}">Próxima página</a>` : ""}
             </div>
           </div>
         </body>
@@ -971,37 +490,13 @@ function renderizarHistoricoHtml(protocolo, historico) {
         a {
           text-decoration: none;
         }
-        @media print {
-          body {
-            background: white;
-            margin: 0;
-          }
-
-          .box {
-            box-shadow: none;
-            border: 1px solid #ccc;
-          }
-
-          button {
-            display: none;
-          }
-
-          a {
-            display: none;
-          }
-        }
       </style>
     </head>
     <body>
       <div class="box">
         <h1>Histórico da Reclamação</h1>
         <p><strong>Protocolo:</strong> ${escapeHtml(protocolo)}</p>
-        <div style="display:flex; gap:10px; flex-wrap:wrap;">
-          <a href="/painel">Voltar ao painel</a>
-          <button onclick="window.print()" style="padding:10px 14px; border-radius:8px; border:1px solid #ccc; background:#f5f5f5; cursor:pointer;">
-            Imprimir / Salvar PDF
-          </button>
-        </div>
+        <p><a href="/painel">Voltar ao painel</a></p>
       </div>
 
       <div class="box">
@@ -1014,94 +509,9 @@ function renderizarHistoricoHtml(protocolo, historico) {
             </tr>
           </thead>
           <tbody>
-            ${linhas || `<tr><td colspan="12">Nenhuma reclamação encontrada.</td></tr>`}
+            ${linhas || `<tr><td colspan="3">Nenhum histórico encontrado.</td></tr>`}
           </tbody>
         </table>
-      </div>
-    </body>
-    </html>
-  `;
-}
-
-function renderizarDetalhesHtml(reclamacao) {
-  return `
-    <!DOCTYPE html>
-    <html lang="pt-BR">
-    <head>
-      <meta charset="UTF-8" />
-      <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-      <title>Detalhes da Reclamação</title>
-      <style>
-        body {
-          font-family: Arial, sans-serif;
-          margin: 24px;
-          background: #f7f7f7;
-          color: #222;
-        }
-        .box {
-          background: white;
-          border-radius: 10px;
-          padding: 16px;
-          margin-bottom: 20px;
-          box-shadow: 0 1px 6px rgba(0,0,0,0.08);
-        }
-        .linha {
-          margin-bottom: 10px;
-        }
-        .label {
-          font-weight: bold;
-        }
-        a {
-          text-decoration: none;
-        }
-        
-        @media print {
-          body {
-            background: white;
-            margin: 0;
-          }
-
-          .box {
-            box-shadow: none;
-            border: 1px solid #ccc;
-          }
-
-          button {
-            display: none;
-          }
-
-          a {
-            display: none;
-          }
-        }
-
-      </style>
-    </head>
-    <body>
-      <div class="box">
-        <h1>Detalhes da Reclamação</h1>
-        <div style="display:flex; gap:10px; flex-wrap:wrap;">
-          <a href="/painel">Voltar ao painel</a>
-          <button onclick="window.print()" style="padding:10px 14px; border-radius:8px; border:1px solid #ccc; background:#f5f5f5; cursor:pointer;">
-            Imprimir / Salvar PDF
-          </button>
-        </div>
-      </div>
-
-      <div class="box">
-        <div class="linha"><span class="label">Protocolo:</span> ${escapeHtml(reclamacao.protocolo || "-")}</div>
-        <div class="linha"><span class="label">Nome:</span> ${escapeHtml(reclamacao.nome_contato || "-")}</div>
-        <div class="linha"><span class="label">Telefone:</span> ${escapeHtml(reclamacao.telefone || "-")}</div>
-        <div class="linha"><span class="label">Categoria:</span> ${escapeHtml(reclamacao.categoria || "-")}</div>
-        <div class="linha"><span class="label">Bloco:</span> ${escapeHtml(reclamacao.bloco || "-")}</div>
-        <div class="linha"><span class="label">Unidade:</span> ${escapeHtml(reclamacao.unidade || "-")}</div>
-        <div class="linha"><span class="label">Status:</span> ${escapeHtml(reclamacao.status || "-")}</div>
-        <div class="linha"><span class="label">Criado em:</span> ${new Date(reclamacao.criado_em).toLocaleString("pt-BR")}</div>
-        <div class="linha"><span class="label">Descrição:</span><br>${escapeHtml(reclamacao.descricao || "-").replace(/\n/g, "<br>")}</div>
-      </div>
-
-      <div class="box">
-        <a href="/reclamacoes/${encodeURIComponent(reclamacao.protocolo)}/historico" target="_blank">Ver histórico</a>
       </div>
     </body>
     </html>
@@ -1507,9 +917,6 @@ app.get("/exportar-csv", middlewareProtegePainel, async (req, res) => {
     const nome = normalizarTexto(req.query.nome || "");
     const categoria = normalizarTexto(req.query.categoria || "");
     const ordem = normalizarTexto(req.query.ordem || "desc").toLowerCase() === "asc" ? "asc" : "desc";
-    const dataInicio = normalizarTexto(req.query.data_inicio || "");
-    const dataFim = normalizarTexto(req.query.data_fim || "");
-    
 
     let whereBase = `
       FROM reclamacoes
@@ -1537,15 +944,7 @@ app.get("/exportar-csv", middlewareProtegePainel, async (req, res) => {
       values.push(categoria);
       condicoes.push(`categoria = $${values.length}`);
     }
-    if (dataInicio) {
-      values.push(dataInicio);
-      condicoes.push(`DATE(criado_em) >= $${values.length}`);
-    }
 
-    if (dataFim) {
-      values.push(dataFim);
-      condicoes.push(`DATE(criado_em) <= $${values.length}`);
-    }
     if (status) {
       values.push(status);
       condicoes.push(`status = $${values.length}`);
@@ -1626,8 +1025,6 @@ app.get("/painel", middlewareProtegePainel, async (req, res) => {
     const nome = normalizarTexto(req.query.nome || "");
     const categoria = normalizarTexto(req.query.categoria || "");
     const ordem = normalizarTexto(req.query.ordem || "desc").toLowerCase() === "asc" ? "asc" : "desc";
-    const dataInicio = normalizarTexto(req.query.data_inicio || "");
-    const dataFim = normalizarTexto(req.query.data_fim || "");
     const pagina = parseInt(req.query.pagina || "1", 10);
     const limite = 20;
     const offset = (pagina - 1) * limite;
@@ -1658,15 +1055,6 @@ app.get("/painel", middlewareProtegePainel, async (req, res) => {
       values.push(categoria);
       condicoes.push(`categoria = $${values.length}`);
     }
-    if (dataInicio) {
-      values.push(dataInicio);
-      condicoes.push(`DATE(criado_em) >= $${values.length}`);
-    }
-
-    if (dataFim) {
-      values.push(dataFim);
-      condicoes.push(`DATE(criado_em) <= $${values.length}`);
-    }
 
     if (status) {
       values.push(status);
@@ -1679,11 +1067,8 @@ app.get("/painel", middlewareProtegePainel, async (req, res) => {
 
     const queryCount = `SELECT COUNT(*) ${whereBase}`;
     const countResult = await pool.query(queryCount, values);
-    const totalFiltrado = parseInt(countResult.rows[0].count, 10);
-    const totalPaginas = Math.max(1, Math.ceil(totalFiltrado / limite));
-
-    const totalGeralResult = await pool.query(`SELECT COUNT(*) FROM reclamacoes`);
-    const totalGeral = parseInt(totalGeralResult.rows[0].count, 10);
+    const totalRegistros = parseInt(countResult.rows[0].count, 10);
+    const totalPaginas = Math.max(1, Math.ceil(totalRegistros / limite));
 
     const queryDados = `
       SELECT id, protocolo, telefone, nome_contato, categoria, bloco, unidade, descricao, status, criado_em, atualizado_em
@@ -1697,7 +1082,7 @@ app.get("/painel", middlewareProtegePainel, async (req, res) => {
     const { rows } = await pool.query(queryDados, valoresDados);
 
     res.send(
-    renderizarPainelHtml(
+      renderizarPainelHtml(
       rows,
       protocolo,
       telefone,
@@ -1706,11 +1091,7 @@ app.get("/painel", middlewareProtegePainel, async (req, res) => {
       categoria,
       pagina,
       totalPaginas,
-      ordem,
-      dataInicio,
-      dataFim,
-      totalGeral,
-      totalFiltrado
+      ordem
     )
     );
   } catch (err) {
@@ -1766,21 +1147,6 @@ app.post("/painel/status", middlewareProtegePainel, async (req, res) => {
   } catch (err) {
     console.error("Erro ao atualizar status pelo painel:", err);
     res.status(500).send("Erro ao atualizar status.");
-  }
-});
-app.get("/reclamacoes/:protocolo/detalhes", async (req, res) => {
-  try {
-    const { protocolo } = req.params;
-    const reclamacao = await buscarReclamacaoPorProtocolo(protocolo);
-
-    if (!reclamacao) {
-      return res.status(404).send("Reclamação não encontrada.");
-    }
-
-    res.send(renderizarDetalhesHtml(reclamacao));
-  } catch (err) {
-    console.error("Erro ao buscar detalhes:", err);
-    res.status(500).send("Erro ao buscar detalhes.");
   }
 });
 app.get("/reclamacoes/:protocolo/historico", async (req, res) => {
